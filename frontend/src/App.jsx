@@ -22,6 +22,9 @@ import Customer from './pages/dashboard/page/Customer'
 import KitchenDashboard from './pages/dashboard/page/KitchenDashboard'
 import WaiterTerminal from './pages/dashboard/page/WaiterTerminal'
 
+// QR Ordering (public, no auth required)
+import QROrderPage from './pages/QR/QROrderPage'
+
 // Admin Pages (Lazy Loaded)
 const AdminDashboard = lazy(() => import('./pages/Admin/pages/AdminDashboard'));
 const MenuManagement = lazy(() => import('./pages/Admin/pages/MenuManagement'));
@@ -38,6 +41,7 @@ const AuditLog = lazy(() => import('./pages/Admin/pages/AuditLog'));
 const ForecastPage = lazy(() => import('./pages/Admin/pages/ForecastPage'));
 const CurrencySettings = lazy(() => import('./pages/Admin/pages/CurrencySettings'));
 const ReportsDashboard = lazy(() => import('./pages/Admin/pages/ReportsDashboard'));
+const QRCodeGenerator = lazy(() => import('./pages/Admin/pages/QRCodeGenerator'));
 
 import ChatWidget from './components/chat/ChatWidget';
 import { Toaster } from 'sonner';
@@ -108,6 +112,8 @@ const App = () => {
           element={!authUser ? <Signup /> : <Navigate to={authUser.role === 'admin' ? "/admin" : "/"} />}
         />
 
+        {/* QR Ordering — public, no auth required */}
+        <Route path="/qr/:tableId" element={<QROrderPage />} />
 
         <Route path="/" element={authUser ? <Dashboard /> : <Navigate to="/login" />} >
           <Route index element={
@@ -197,6 +203,11 @@ const App = () => {
           <Route path="/admin/reports-dashboard" element={
             <Suspense fallback={<PageLoader />}>
               <ReportsDashboard />
+            </Suspense>
+          } />
+          <Route path="/admin/qr-codes" element={
+            <Suspense fallback={<PageLoader />}>
+              <QRCodeGenerator />
             </Suspense>
           } />
         </Route>

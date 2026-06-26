@@ -51,6 +51,13 @@ const userSchema = new mongoose.Schema({
     isActive: {
         type: Boolean,
         default: true
+    },
+    // === Multi-outlet sync ===
+    // Outlet kateremu pripada uporabnik (null = HQ admin, dostop do vseh)
+    outletId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Outlet",
+        default: null,
     }
 }, {
     timestamps: true

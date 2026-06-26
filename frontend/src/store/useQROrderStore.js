@@ -1,0 +1,159 @@
+import { create } from "zustand";
+import axios from "axios";
+
+// Poseben axios instance brez credentials — javni API
+const publicApi = axios.create({
+    baseURL: import.meta.env.DEV || window.location.hostname === "localhost"
+        ? "http://localhost:3000/api/public"
+        : "/api/public",
+    withCredentials: false,
+});
+
+export const useQROrderStore = create((set, get) => ({
+    // Stanje
+    menuByCategory: [],
+    menuItems: [],
+    categories: [],
+    table: null,
+    cart: [],         // [{ menuItemId, name, price, quantity, image }]
+    customerName: "",
+    customerPhone: "",
+    isLoading: false,
+    isSubmitting: false,
+    lastOrder: null,
+    error: null,
+
+    // Naloži meni in mizo
+    loadData: async (tableId) => {
+        set({ isLoading: true, error: null });
+        try {
+            const [menuRes, tableRes] = await Promise.all([
+                publicApi.get("/menu"),
+                publicApi.get(`/table/${tableId}`),
+            ]);
+            set({
+                menuByCategory: menuRes.data.menuByCategory || [],
+                menuItems: menuRes.data.menuItems || [],
+                categories: menuRes.data.categories || [],
+                table: tableRes.data.table,
+                isLoading: false,
+            });
+        } catch (error) {
+            console.error("QR load error:", error);
+            set({
+                isLoading: false,
+                error: error.response?.data?.message || "Failed to load menu",
+            });
+        }
+    },
+
+    // Cart operacije
+    addToCart: (menuItem) => {
+        const { cart } = get();
+        const existing = cart.find(i => i.menuItemId === menuItem._id);
+        if (existing) {
+            set({
+                cart: cart.map(i =>
+                    i.menuItemId === menuItem._id
+                        ? { ...i, quantity: i.quantity + 1 }
+                        : i
+                )
+            });
+        } else {
+            set({
+                cart: [...cart, {
+                    menuItemId: menuItem._id,
+                    name: menuItem.name,
+                    price: menuItem.price,
+                    image: menuItem.image,
+                    quantity: 1,
+                }]
+            });
+        }
+    },
+
+    removeFromCart: (menuItemId) => {
+        const { cart } = get();
+        const existing = cart.find(i => i.menuItemId === menuItemId);
+        if (existing && existing.quantity > 1) {
+            set({
+                cart: cart.map(i =>
+                    i.menuItemId === menuItemId
+                        ? { ...i, quantity: i.quantity - 1 }
+                        : i
+                )
+            });
+        } else {
+            set({ cart: cart.filter(i => i.menuItemId !== menuItemId) });
+        }
+    },
+
+    setQuantity: (menuItemId, qty) => {
+        if (qty < 1) {
+            set(state => ({ cart: state.cart.filter(i => i.menuItemId !== menuItemId) }));
+        } else {
+            set(state => ({
+                cart: state.cart.map(i =>
+                    i.menuItemId === menuItemId ? { ...i, quantity: qty } : i
+                )
+            }));
+        }
+    },
+
+    clearCart: () => set({ cart: [] }),
+
+    setCustomer: (name, phone) => set({ customerName: name, customerPhone: phone }),
+
+    // Oddaj naročilo
+    placeOrder: async (tableId) => {
+        const { cart, customerName, customerPhone } = get();
+        if (cart.length === 0) {
+            return { success: false, message: "Cart is empty" };
+        }
+        set({ isSubmitting: true, error: null });
+        try {
+            const res = await publicApi.post("/order", {
+                tableId,
+                customerName: customerName || "Guest",
+                customerPhone: customerPhone || "",
+                items: cart.map(i => ({
+                    menuItemId: i.menuItemId,
+                    quantity: i.quantity,
+                })),
+            });
+            set({
+                isSubmitting: false,
+                lastOrder: res.data.order,
+                cart: [],
+            });
+            return res.data;
+        } catch (error) {
+            console.error("Place order error:", error);
+            set({
+                isSubmitting: false,
+                error: error.response?.data?.message || "Failed to place order",
+            });
+            return {
+                success: false,
+                message: error.response?.data?.message || "Failed to place order",
+            };
+        }
+    },
+
+    reset: () => set({
+        cart: [], customerName: "", customerPhone: "",
+        lastOrder: null, error: null,
+    }),
+
+    // Getters
+    getCartTotal: () => {
+        const { cart } = get();
+        return cart.reduce((sum, i) => sum + (i.price * i.quantity), 0);
+    },
+    getCartCount: () => {
+        const { cart } = get();
+        return cart.reduce((sum, i) => sum + i.quantity, 0);
+    },
+}));
+
+export default useQROrderStore;

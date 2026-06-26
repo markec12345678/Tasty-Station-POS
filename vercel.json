@@ -1,0 +1,15 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "version": 2,
+  "name": "tasty-station-pos",
+  "scope": "markec12345678",
+  "public": true,
+  "github": {
+    "enabled": true,
+    "silent": true,
+    "autoAlias": true
+  },
+  "comments": {
+    "deployment": "Multi-project setup — frontend deployed as Vercel static site, backend deployed as Vercel serverless functions. See DEPLOYMENT.md for instructions."
+  }
+}
