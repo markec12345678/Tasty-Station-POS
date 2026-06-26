@@ -18,6 +18,12 @@ import {
     Bell,
     ShoppingCart,
     TrendingUp,
+    Database,
+    Award,
+    Shield,
+    Brain,
+    Coins,
+    BarChart3,
 } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import { cn } from '@/lib/utils'
@@ -33,15 +39,18 @@ const AdminSidebar = () => {
 
     const menuItems = [
         { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, badge: 0, link: '/admin' },
+        { id: 'reports-dashboard', label: 'Reports Dashboard', icon: BarChart3, badge: 0, link: '/admin/reports-dashboard' },
         { id: 'menu', label: 'Menu', icon: ShoppingCart, badge: 3, link: '/admin/menu' },
         { id: 'tables', label: 'Manage Tables', icon: Grid2x2Check, badge: 0, link: '/admin/tables' },
-        // { id: 'dishes', label: 'Manage Dishes', icon: Hamburger, badge: 12, link: '/admin/dishes' },
         { id: 'inventory', label: 'Inventory', icon: Package, badge: 5, link: '/admin/inventory' },
+        { id: 'forecast', label: 'AI Forecast', icon: Brain, badge: 0, link: '/admin/forecast' },
         { id: 'staff', label: 'Staff Management', icon: ChefHat, badge: 0, link: '/admin/staff' },
-        // { id: 'users', label: 'Manage Users', icon: UserRoundCog, badge: 0, link: '/admin/users' },
-        // { id: 'customers', label: 'Customers', icon: Users, badge: 0, link: '/admin/customers' },
         { id: 'customer-history', label: 'Customer History', icon: Users, badge: 0, link: '/admin/customer-history' },
-        { id: 'reports', label: 'Reports', icon: TrendingUp, badge: 0, link: '/admin/reports' },
+        { id: 'loyalty', label: 'Loyalty Program', icon: Award, badge: 0, link: '/admin/loyalty' },
+        { id: 'reports', label: 'Reports (Legacy)', icon: TrendingUp, badge: 0, link: '/admin/reports' },
+        { id: 'currency', label: 'Currency Settings', icon: Coins, badge: 0, link: '/admin/currency' },
+        { id: 'backup', label: 'Backup & Restore', icon: Database, badge: 0, link: '/admin/backup' },
+        { id: 'audit', label: 'Audit Log', icon: Shield, badge: 0, link: '/admin/audit' },
         { id: 'pos-terminal', label: 'POS Terminal', icon: BringToFront, badge: 0, link: '/orders' },
     ]
 

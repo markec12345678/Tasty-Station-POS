@@ -32,6 +32,12 @@ const ManageInventory = lazy(() => import('./pages/Admin/pages/ManageInventory')
 const AdminReports = lazy(() => import('./pages/Admin/pages/AdminReports'));
 const StaffManagement = lazy(() => import('./pages/Admin/pages/StaffManagement'));
 const CustomerHistory = lazy(() => import('./pages/Admin/pages/CustomerHistory'));
+const BackupRestore = lazy(() => import('./pages/Admin/pages/BackupRestore'));
+const LoyaltyManagement = lazy(() => import('./pages/Admin/pages/LoyaltyManagement'));
+const AuditLog = lazy(() => import('./pages/Admin/pages/AuditLog'));
+const ForecastPage = lazy(() => import('./pages/Admin/pages/ForecastPage'));
+const CurrencySettings = lazy(() => import('./pages/Admin/pages/CurrencySettings'));
+const ReportsDashboard = lazy(() => import('./pages/Admin/pages/ReportsDashboard'));
 
 import ChatWidget from './components/chat/ChatWidget';
 import { Toaster } from 'sonner';
@@ -161,6 +167,36 @@ const App = () => {
           <Route path="/admin/customer-history" element={
             <Suspense fallback={<PageLoader />}>
               <CustomerHistory />
+            </Suspense>
+          } />
+          <Route path="/admin/backup" element={
+            <Suspense fallback={<PageLoader />}>
+              <BackupRestore />
+            </Suspense>
+          } />
+          <Route path="/admin/loyalty" element={
+            <Suspense fallback={<PageLoader />}>
+              <LoyaltyManagement />
+            </Suspense>
+          } />
+          <Route path="/admin/audit" element={
+            <Suspense fallback={<PageLoader />}>
+              <AuditLog />
+            </Suspense>
+          } />
+          <Route path="/admin/forecast" element={
+            <Suspense fallback={<PageLoader />}>
+              <ForecastPage />
+            </Suspense>
+          } />
+          <Route path="/admin/currency" element={
+            <Suspense fallback={<PageLoader />}>
+              <CurrencySettings />
+            </Suspense>
+          } />
+          <Route path="/admin/reports-dashboard" element={
+            <Suspense fallback={<PageLoader />}>
+              <ReportsDashboard />
             </Suspense>
           } />
         </Route>
