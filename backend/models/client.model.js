@@ -59,9 +59,41 @@ const clientSchema = new mongoose.Schema({
         street: String,
         city: String,
         zip: String
-    }
+    },
+
+    // === Loyalty program ===
+    loyaltyPoints: {
+        type: Number,
+        default: 0,
+        min: 0
+    },
+    tier: {
+        type: String,
+        enum: ["Bronze", "Silver", "Gold", "Platinum"],
+        default: "Bronze"
+    },
+    loyaltyHistory: [{
+        type: {
+            type: String,
+            enum: ["earned", "redeemed", "adjusted", "expired"],
+            required: true
+        },
+        points: { type: Number, required: true },
+        balance: Number,
+        reason: String,
+        orderId: { type: mongoose.Schema.Types.ObjectId, ref: "Order" },
+        timestamp: { type: Date, default: Date.now }
+    }]
 
 }, { timestamps: true });
+
+clientSchema.methods.updateTier = function() {
+    if (this.totalSpent >= 50000) this.tier = "Platinum";
+    else if (this.totalSpent >= 15000) this.tier = "Gold";
+    else if (this.totalSpent >= 5000) this.tier = "Silver";
+    else this.tier = "Bronze";
+    return this.tier;
+};
 
 const Client = mongoose.models.Client || mongoose.model("Client", clientSchema);
 module.exports = Client;

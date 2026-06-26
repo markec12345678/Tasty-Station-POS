@@ -18,8 +18,25 @@ const orderSchema = new mongoose.Schema({
     },
     paymentMethod: {
         type: String,
-        enum: ["Cash", "Card", "Online"],
+        enum: ["Cash", "Card", "Online", "Split"],
         default: "Cash"
+    },
+    // Split payment support — array vseh plačil za ta račun
+    payments: [{
+        method: {
+            type: String,
+            enum: ["Cash", "Card", "Online"],
+            required: true
+        },
+        amount: { type: Number, required: true, min: 0 },
+        reference: { type: String, default: null },
+        timestamp: { type: Date, default: Date.now }
+    }],
+    amountPaid: { type: Number, default: 0, min: 0 },
+    balanceDue: {
+        type: Number,
+        default: function() { return this.totalAmount || 0; },
+        min: 0
     },
     items: [{
         menuItem: {

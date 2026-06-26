@@ -1,0 +1,98 @@
+name: 💡 Feature Request
+description: Suggest a new feature or enhancement for Tasty Station POS
+title: "[FEATURE] "
+labels: ["enhancement", "triage"]
+assignees:
+  - markec12345678
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a feature! 💡
+        Please search existing issues before creating a new one to avoid duplicates.
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Preliminary Check
+      description: Please confirm the following
+      options:
+        - label: I have searched the existing issues and confirmed this is not a duplicate.
+          required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: What problem does this feature solve? What is the current pain point?
+      placeholder: "When I'm processing 50+ orders during lunch rush, I have to manually..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: What would you like to see happen? Be as specific as possible.
+      placeholder: "I'd like a quick-action button on the POS terminal that..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Have you considered any alternative solutions or workarounds?
+
+  - type: dropdown
+    id: module
+    attributes:
+      label: Affected Module
+      options:
+        - Authentication / Login
+        - POS Terminal / Order Page
+        - Kitchen Display (KDS)
+        - Table Management / Floor Plan
+        - Waiter Terminal
+        - Loyalty Program
+        - Backup & Restore
+        - Reports & Analytics
+        - Admin Panel
+        - i18n / Language
+        - API / Backend
+        - Database / Models
+        - New module
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options:
+        - Low — Nice to have
+        - Medium — Would significantly improve workflow
+        - High — Blocking daily operations
+    validations:
+      required: true
+
+  - type: dropdown
+    id: willing
+    attributes:
+      label: Willingness to Contribute
+      options:
+        - "Yes, I can submit a PR"
+        - "Yes, I can help with testing"
+        - "No, just suggesting"
+
+  - type: textarea
+    id: mockups
+    attributes:
+      label: Mockups / Examples
+      description: If you have mockups, screenshots from other apps, or examples to share, add them here.
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context

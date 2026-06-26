@@ -1,0 +1,132 @@
+name: 🐛 Bug Report
+description: Report a bug to help us improve Tasty Station POS
+title: "[BUG] "
+labels: ["bug", "triage"]
+assignees:
+  - markec12345678
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report! 🐛
+        Please search existing issues before creating a new one to avoid duplicates.
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Preliminary Check
+      description: Please confirm the following
+      options:
+        - label: I have searched the existing issues and confirmed this is not a duplicate.
+          required: true
+        - label: I have reproduced this issue on the latest version.
+          required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is.
+      placeholder: "When I click on the 'Place Order' button, nothing happens..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: Steps to reproduce the behavior
+      placeholder: |
+        1. Go to '...'
+        2. Click on '...'
+        3. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What you expected to happen
+      placeholder: "The order should be placed and a confirmation toast should appear."
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happened
+      placeholder: "Nothing happens. Console shows 'TypeError: ...'."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      description: How severe is this bug?
+      options:
+        - Low — Cosmetic issue, doesn't affect functionality
+        - Medium — Affects functionality but has a workaround
+        - High — Major functionality broken, no workaround
+        - Critical — App crashes, data loss, or security issue
+    validations:
+      required: true
+
+  - type: dropdown
+    id: module
+    attributes:
+      label: Affected Module
+      description: Which part of the application is affected?
+      options:
+        - Authentication / Login
+        - POS Terminal / Order Page
+        - Kitchen Display (KDS)
+        - Table Management / Floor Plan
+        - Waiter Terminal
+        - Loyalty Program
+        - Backup & Restore
+        - Reports & Analytics
+        - Admin Panel
+        - i18n / Language
+        - API / Backend
+        - Database / Models
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: If applicable, add screenshots or screen recordings to help explain your problem.
+      placeholder: "Drag and drop images here..."
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Please provide your environment details
+      placeholder: |
+        - OS: [e.g. macOS 14.2, Windows 11, Ubuntu 22.04]
+        - Browser: [e.g. Chrome 120, Firefox 121, Safari 17]
+        - Node.js version: [e.g. 20.10.0]
+        - MongoDB version: [e.g. 7.0.4]
+        - App version / commit: [e.g. 2980f22]
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant Logs
+      description: Please copy and paste any relevant log output. This will be automatically formatted as code.
+      render: shell
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Add any other context about the problem here.

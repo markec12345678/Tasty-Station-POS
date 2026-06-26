@@ -18,7 +18,11 @@ const Client = require("./models/client.model");
 const Inventory = require("./models/inventory.model");
 const Tax = require("./models/tax.model");
 const Discount = require("./models/discount.model");
+const Reward = require("./models/reward.model");
+const LoyaltySettings = require("./models/loyaltySettings.model");
+const CurrencySettings = require("./models/currencySettings.model");
 const Order = require("./models/order.model");
+const bcrypt = require("bcryptjs");
 const data = require("./data");
 
 const seedIfEmpty = async () => {
@@ -29,7 +33,14 @@ const seedIfEmpty = async () => {
     }
     console.log("🌱 DB empty — seeding demo data…");
 
-    await User.insertMany(data.users);
+    // Hash passwords pred insertMany (ker pre("save") hook se ne sproži)
+    const usersWithHashedPasswords = await Promise.all(
+        data.users.map(async (u) => ({
+            ...u,
+            password: await bcrypt.hash(u.password, 10)
+        }))
+    );
+    await User.insertMany(usersWithHashedPasswords);
     const cats = await Category.insertMany(data.categories);
 
     const menuItems = data.menuItems.map(item => {
@@ -43,8 +54,12 @@ const seedIfEmpty = async () => {
     await Inventory.insertMany(data.inventory);
     if (data.taxes) await Tax.insertMany(data.taxes);
     if (data.discounts) await Discount.insertMany(data.discounts);
+    if (data.rewards) await Reward.insertMany(data.rewards);
+    // Singleton settings
+    await LoyaltySettings.getSettings();
+    await CurrencySettings.getSettings();
 
-    console.log(`✅ Seeded: ${data.users.length} users, ${data.menuItems.length} menu items, ${data.tables.length} tables`);
+    console.log(`✅ Seeded: ${data.users.length} users (passwords hashed), ${data.menuItems.length} menu items, ${data.tables.length} tables, ${data.rewards?.length || 0} rewards`);
 };
 
 (async () => {
