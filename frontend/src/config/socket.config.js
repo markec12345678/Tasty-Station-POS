@@ -1,8 +1,12 @@
 import { io } from "socket.io-client";
 
-// In development, the Vite dev server typically proxies via vite.config.js
-// If deployed, this should point to your backend URL (e.g., from an environment variable)
-const SOCKET_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+// V lokalnem okolju (dev ali preview na localhost) uporabi lokalni backend.
+const isLocal = import.meta.env.DEV
+    || (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"));
+
+const SOCKET_URL = isLocal
+    ? "http://localhost:3000"
+    : (import.meta.env.VITE_API_BASE_URL || "https://tastystation-bg.vercel.app");
 
 let socket = null;
 

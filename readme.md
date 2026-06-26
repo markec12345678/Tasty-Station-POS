@@ -16,25 +16,50 @@
 
 ## 🖼️ Preview
 
-### Dashboard
-![Tasty Station POS Dashboard](./docs/preview-dashboard.png)
+### Login Screen (Slovenian)
+![Login](./docs/screenshots/login.png)
 
-> _Premium SaaS Aesthetic with Dark Mode support and Real-time syncing._
+### Admin Dashboard (with Live Activity Feed)
+![Admin Dashboard](./docs/screenshots/admin-dashboard.png)
 
-### Modern Menu Interface (Light & Dark Mode)
+### POS Terminal — Order Entry
+![POS Terminal](./docs/screenshots/orders.png)
 
-| Light Mode | Dark Mode |
-| :--- | :--- |
-| ![Menu Light](./docs/menu-light.png) | ![Menu Dark](./docs/menu-dark.png) |
+### Floor Plan — Table Management
+![Tables](./docs/screenshots/tables.png)
 
-### 🗺️ Dynamic Floor Plan & Table Management
+### Kitchen Display System (KDS)
+![Kitchen](./docs/screenshots/kitchen.png)
 
-| Light Mode | Dark Mode |
-| :--- | :--- |
-| ![Table Light](./docs/table-light.png) | ![Table Dark](./docs/table-dark.png) |
+### QR Code Generator
+![QR Codes](./docs/screenshots/qr-codes.png)
 
-### System Architecture
-![Architecture](./docs/architecture.png)
+### Customer QR Ordering (Mobile)
+![QR Ordering](./docs/screenshots/qr-ordering.png)
+
+### Loyalty Program
+![Loyalty](./docs/screenshots/loyalty.png)
+
+### Reports Dashboard
+![Reports](./docs/screenshots/reports-dashboard.png)
+
+### AI Inventory Forecast
+![AI Forecast](./docs/screenshots/ai-forecast.png)
+
+### Currency Settings
+![Currency](./docs/screenshots/currency.png)
+
+### Backup & Restore
+![Backup](./docs/screenshots/backup.png)
+
+### Audit Log
+![Audit Log](./docs/screenshots/audit-log.png)
+
+### Outlets Management
+![Outlets](./docs/screenshots/outlets.png)
+
+### Fiscal Invoices
+![Fiscal](./docs/screenshots/fiscal.png)
 
 ---
 
@@ -143,6 +168,28 @@
 - **Auto-Expire:** Logs auto-delete after 365 days (configurable).
 - **Non-Blocking:** Audit logging never breaks main application flow.
 
+### 📧 Email Notifications (NEW)
+- **5 HTML Templates:** Order ready, loyalty tier upgrade, low stock alert, welcome, daily report.
+- **SMTP Integration:** Nodemailer with configurable SMTP (Gmail, SendGrid, etc.).
+- **Admin Notifications:** Automatic alerts to all admin users for system events.
+- **Test Endpoint:** `/api/email/test` for verifying email configuration.
+- **Graceful Fallback:** Email service silently skips when SMTP not configured.
+
+### 📊 Live Dashboard (NEW)
+- **Real-Time WebSocket Feed:** Live activity stream on Admin Dashboard.
+- **Socket.io Events:** Tracks newOrder, orderStatusUpdate, qrOrderPlaced, paymentUpdate.
+- **Live KPIs:** Revenue, orders, pending, average order value — all update in real-time.
+- **Events Per Minute:** Counter with auto-cleanup (events older than 60s removed).
+- **QR Orders Panel:** Shows last 10 QR-placed orders in real-time.
+- **Connection Status:** Green pulse indicator when WebSocket is connected.
+
+### 📱 Customer Order Tracking (NEW)
+- **Public Tracking Page:** Guests track their order status without login at `/track/:orderId`.
+- **Visual Timeline:** Animated status progression (Pending → Preparing → Ready → Completed).
+- **Auto-Refresh:** Page auto-updates every 10 seconds until order is completed.
+- **Mobile-Optimized:** Touch-friendly interface designed for phone screens.
+- **Search by Order ID:** Guests can manually enter their order ID to track.
+
 ---
 
 ## 🌍 Internationalization (i18n)
@@ -161,9 +208,9 @@ Full multi-language support with **Slovenian (default)** and **English**:
 Tasty-Station-POS/
 ├── backend/                    # Express API & Business Logic
 │   ├── config/                 # Database, Cloudinary, Socket.io configs
-│   ├── controllers/            # 16 controllers (order, loyalty, backup, currency, audit, forecast, outlet, ...)
-│   ├── models/                 # 15 Mongoose models (User, Order, Table, Reward, Outlet, FiscalInvoice, ...)
-│   ├── routers/                # 20 API routers
+│   ├── controllers/            # 17 controllers (order, loyalty, backup, currency, audit, forecast, outlet, fiscal, email, ...)
+│   ├── models/                 # 16 Mongoose models (User, Order, Table, Reward, Outlet, FiscalInvoice, AuditLog, ...)
+│   ├── routers/                # 22 API routers
 │   ├── middlewares/            # Auth, cache, error, validators
 │   ├── redis/                  # Redis client with graceful fallback
 │   ├── utils/                  # ApiError, logger, genrateToken
@@ -179,7 +226,7 @@ Tasty-Station-POS/
 │   │   │   ├── dashboard/      # Cashier/Waiter/Kitchen pages
 │   │   │   ├── Admin/          # 17 admin pages (lazy-loaded)
 │   │   │   └── QR/             # Customer-facing QR ordering page
-│   │   ├── store/              # 16 Zustand stores (auth, order, kitchen, loyalty, audit, forecast, ...)
+│   │   ├── store/              # 17 Zustand stores (auth, order, kitchen, loyalty, audit, forecast, currency, fiscal, outlet, ...)
 │   │   ├── i18n/               # Slovenian + English translations
 │   │   └── axios/              # Configured interceptors
 │   └── vite.config.js
@@ -364,6 +411,9 @@ VITE_API_BASE_URL=http://localhost:3000
 | GET    | `/api/public/menu`               | Public menu (for QR ordering)        | Public   |
 | GET    | `/api/public/table/:id`          | Public table info                    | Public   |
 | POST   | `/api/public/order`              | Guest places order via QR            | Public   |
+| GET    | `/api/public/track/:orderId`     | Guest tracks order status            | Public   |
+| GET    | `/api/email/status`              | Check SMTP configuration             | Admin    |
+| POST   | `/api/email/test`                | Send test email                      | Admin    |
 
 ---
 
@@ -373,8 +423,12 @@ VITE_API_BASE_URL=http://localhost:3000
 - [x] ~~**Multi-Outlet Sync**: Centralized dashboard for restaurant chains.~~ ✅ Done
 - [x] ~~**QR Code Ordering**: Customer-facing self-service interface.~~ ✅ Done
 - [x] ~~**Slovenian Fiskalni Sistem**: FURS integration (ZOI, EOR, QR).~~ ✅ Done (architecture ready — requires FURS cert)
+- [x] ~~**Email Notifications**: Order ready, loyalty tier upgrade, low stock, daily report.~~ ✅ Done
+- [x] ~~**Customer Order Tracking**: Public tracking page with auto-refresh.~~ ✅ Done
+- [x] ~~**Live Dashboard**: Real-time WebSocket activity feed on Admin Dashboard.~~ ✅ Done
 - [ ] **Mobile App (React Native)**: Native POS for handheld device speed.
 - [ ] **Multi-currency Exchange Rates**: Live EUR/USD/Rs conversion.
+- [ ] **Push Notifications**: Browser + mobile push for new orders.
 
 ---
 
