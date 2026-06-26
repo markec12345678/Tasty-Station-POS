@@ -24,6 +24,7 @@ import WaiterTerminal from './pages/dashboard/page/WaiterTerminal'
 
 // QR Ordering (public, no auth required)
 import QROrderPage from './pages/QR/QROrderPage'
+import OrderTracking from './pages/QR/OrderTracking'
 
 // Admin Pages (Lazy Loaded)
 const AdminDashboard = lazy(() => import('./pages/Admin/pages/AdminDashboard'));
@@ -116,6 +117,8 @@ const App = () => {
 
         {/* QR Ordering — public, no auth required */}
         <Route path="/qr/:tableId" element={<QROrderPage />} />
+        <Route path="/track/:orderId" element={<OrderTracking />} />
+        <Route path="/track" element={<OrderTracking />} />
 
         <Route path="/" element={authUser ? <Dashboard /> : <Navigate to="/login" />} >
           <Route index element={

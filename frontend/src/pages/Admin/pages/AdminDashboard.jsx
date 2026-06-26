@@ -15,6 +15,7 @@ import useDashboardStore from "@/store/useDashboardStore";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import StatCard from "../Components/StatCard";
+import LiveDashboard from "../components/LiveDashboard";
 import {
     PieChart, Pie, Cell, ResponsiveContainer, Tooltip
 } from "recharts";
@@ -320,6 +321,20 @@ const AdminDashboard = () => {
                     </CardContent>
                 </Card>
             </div>
+
+            {/* Live Dashboard Side Panel */}
+            <Card className="border-primary/20">
+                <CardHeader>
+                    <CardTitle className="text-base flex items-center gap-2">
+                        <Activity className="size-4 text-primary" />
+                        Real-Time Activity
+                    </CardTitle>
+                    <CardDescription>Live WebSocket feed iz POS, KDS in QR naročil</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <LiveDashboard />
+                </CardContent>
+            </Card>
         </div>
     );
 };

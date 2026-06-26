@@ -28,6 +28,7 @@ const inventoryForecastRouter = require("./routers/inventoryForecast.router");
 const publicRouter = require("./routers/public.router");
 const outletRouter = require("./routers/outlet.router");
 const fiscalRouter = require("./routers/fiscal.router");
+const emailRouter = require("./routers/email.router");
 const errorHandler = require("./middlewares/error.middleware");
 
 const app = express();
@@ -101,6 +102,7 @@ app.use('/api/inventory-forecast', inventoryForecastRouter);
 app.use('/api/public', publicRouter);
 app.use('/api/outlets', outletRouter);
 app.use('/api/fiscal', fiscalRouter);
+app.use('/api/email', emailRouter);
 app.use('/api', redisTestRouter);
 const chatRouter = require("./routers/chat.router");
 app.use('/api/chat', chatRouter);

@@ -246,4 +246,55 @@ router.post("/order", async (req, res) => {
     }
 });
 
+/**
+ * GET /api/public/track/:orderId
+ * Gost preverja status svojega naročila (brez login-a).
+ * orderId je Order.orderId (npr. "QR-1234567890-456")
+ */
+router.get("/track/:orderId", async (req, res) => {
+    try {
+        const order = await Order.findOne({ orderId: req.params.orderId })
+            .populate("table", "name zone")
+            .select("orderId status totalAmount items clientName table createdAt type")
+            .lean();
+
+        if (!order) {
+            return res.status(404).json({ success: false, message: "Order not found" });
+        }
+
+        // Status timeline
+        const timeline = [];
+        if (order.createdAt) timeline.push({ status: "Pending", label: "Naročilo prejeto", time: order.createdAt });
+        if (["Preparing", "Ready", "Completed"].includes(order.status)) {
+            timeline.push({ status: "Preparing", label: "V pripravi", time: null });
+        }
+        if (["Ready", "Completed"].includes(order.status)) {
+            timeline.push({ status: "Ready", label: "Pripravljeno", time: null });
+        }
+        if (order.status === "Completed") {
+            timeline.push({ status: "Completed", label: "Zaključeno", time: null });
+        }
+        if (order.status === "Cancelled") {
+            timeline.push({ status: "Cancelled", label: "Preklicano", time: null });
+        }
+
+        res.status(200).json({
+            success: true,
+            order: {
+                orderId: order.orderId,
+                status: order.status,
+                totalAmount: order.totalAmount,
+                items: order.items,
+                customerName: order.clientName,
+                table: order.table?.name,
+                createdAt: order.createdAt,
+                type: order.type,
+            },
+            timeline,
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
 module.exports = router;
