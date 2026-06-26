@@ -23,6 +23,8 @@ const redisTestRouter = require("./routers/redis.test.router");
 const backupRouter = require("./routers/backup.router");
 const loyaltyRouter = require("./routers/loyalty.router");
 const currencyRouter = require("./routers/currency.router");
+const auditRouter = require("./routers/audit.router");
+const inventoryForecastRouter = require("./routers/inventoryForecast.router");
 const errorHandler = require("./middlewares/error.middleware");
 
 const app = express();
@@ -91,6 +93,8 @@ app.use('/api/dashboard', dashboardRouter);
 app.use('/api/backup', backupRouter);
 app.use('/api/loyalty', loyaltyRouter);
 app.use('/api/currency', currencyRouter);
+app.use('/api/audit', auditRouter);
+app.use('/api/inventory-forecast', inventoryForecastRouter);
 app.use('/api', redisTestRouter);
 const chatRouter = require("./routers/chat.router");
 app.use('/api/chat', chatRouter);
