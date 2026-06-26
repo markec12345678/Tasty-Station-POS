@@ -1,20 +1,109 @@
-import React, { useEffect, useMemo, useCallback } from 'react';
+import React, { useEffect, useMemo, useCallback, useState, useRef } from 'react';
 import useKitchenStore from '@/store/useKitchenStore';
-import { Flame, Timer, CheckCircle2, ChevronRight } from 'lucide-react';
+import { Flame, Timer, CheckCircle2, ChevronRight, Bell, BellOff } from 'lucide-react';
 import KitchenColumn from '../components/kitchen/KitchenColumn';
+import { notifyNewOrder, requestPermission, isSupported } from '@/utils/notifications';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 const KitchenDashboard = () => {
     const { kitchenOrders, fetchKitchenOrders, updateStatus } = useKitchenStore();
+    const [notifEnabled, setNotifEnabled] = useState(() => {
+        return isSupported() && Notification.permission === 'granted';
+    });
+    const [soundEnabled, setSoundEnabled] = useState(() => {
+        const saved = localStorage.getItem('kds-sound');
+        return saved === null ? true : saved === 'true';
+    });
+    const [newOrderIds, setNewOrderIds] = useState(new Set());
+    const previousOrderIdsRef = useRef(new Set());
 
     const handleRefresh = useCallback(async () => {
         await fetchKitchenOrders();
     }, [fetchKitchenOrders]);
 
+    // Request notification permission on mount
+    useEffect(() => {
+        if (isSupported() && Notification.permission === 'default') {
+            requestPermission().then(granted => {
+                setNotifEnabled(granted);
+                if (granted) toast.success('Desktop notifications enabled');
+            });
+        }
+    }, []);
+
+    // Toggle notifications
+    const handleToggleNotif = async () => {
+        if (notifEnabled) {
+            setNotifEnabled(false);
+            toast.info('Desktop notifications disabled');
+        } else {
+            const granted = await requestPermission();
+            setNotifEnabled(granted);
+            if (granted) toast.success('Desktop notifications enabled');
+            else toast.error('Notification permission denied');
+        }
+    };
+
+    // Zapomni si preference
+    useEffect(() => {
+        localStorage.setItem('kds-sound', String(soundEnabled));
+    }, [soundEnabled]);
+
     useEffect(() => {
         handleRefresh();
-        const interval = setInterval(fetchKitchenOrders, 15000);
+        const interval = setInterval(fetchKitchenOrders, 10000);
         return () => clearInterval(interval);
     }, [fetchKitchenOrders, handleRefresh]);
+
+    // Socket.io listener for new orders + notifications
+    useEffect(() => {
+        const handleNewOrder = (newOrder) => {
+            if (newOrder.status === 'Pending') {
+                fetchKitchenOrders();
+                // Sound
+                if (soundEnabled) {
+                    try {
+                        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc.connect(gain);
+                        gain.connect(ctx.destination);
+                        osc.type = 'sine';
+                        osc.frequency.value = 880;
+                        gain.gain.setValueAtTime(0.3, ctx.currentTime);
+                        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+                        osc.start();
+                        osc.stop(ctx.currentTime + 0.2);
+                    } catch (e) {}
+                }
+                // Browser notification
+                if (notifEnabled) {
+                    notifyNewOrder(newOrder);
+                }
+                // Visual NEW badge
+                setNewOrderIds(prev => { const next = new Set(prev); next.add(newOrder._id); return next; });
+                setTimeout(() => {
+                    setNewOrderIds(prev => { const next = new Set(prev); next.delete(newOrder._id); return next; });
+                }, 5000);
+            }
+        };
+
+        import('@/config/socket.config').then(({ getSocket }) => {
+            const socket = getSocket();
+            socket.on('newOrder', handleNewOrder);
+            socket.on('qrOrderPlaced', handleNewOrder);
+        });
+
+        return () => {
+            import('@/config/socket.config').then(({ getSocket }) => {
+                const socket = getSocket();
+                socket.off('newOrder', handleNewOrder);
+                socket.off('qrOrderPlaced', handleNewOrder);
+            });
+        };
+    }, [soundEnabled, notifEnabled, fetchKitchenOrders]);
 
     const ordersByStatus = useMemo(() => ({
         Pending: kitchenOrders.filter(o => o.status === 'Pending'),
