@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useMenuStore } from '@/store/useMenuStore';
 import { useOrderStore } from '@/store/useOrderStore';
 import { useTableStore } from '@/store/useTableStore';
+import { useTaxStore } from '@/store/useTaxStore';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
@@ -19,6 +20,7 @@ const OrderPage = () => {
     const { menu, getAllMenuItems, category: categoriesList, getAllCategories, isLoading: isMenuLoading, paginationMenu } = useMenuStore();
     const { cart, addToCart, removeFromCart, placeOrder, lastOrder, resetLastOrder, isLoading: isOrderLoading } = useOrderStore();
     const { tables, getTables } = useTableStore();
+    const { activeTax, getActiveTax, getTaxRate } = useTaxStore();
 
     const [checkoutStep, setCheckoutStep] = useState(1); // 1: Cart, 2: Details
 
@@ -44,7 +46,8 @@ const OrderPage = () => {
     useEffect(() => {
         getAllCategories(1, 100);
         getTables();
-    }, [getAllCategories, getTables]);
+        getActiveTax(); // Naloži aktivni tax iz baze
+    }, [getAllCategories, getTables, getActiveTax]);
 
     useEffect(() => {
         const timeoutId = setTimeout(() => {
@@ -72,7 +75,9 @@ const OrderPage = () => {
 
     const categories = [{ _id: "", name: "All" }, ...categoriesList];
     const totalAmount = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    const tax = totalAmount * 0.05; // 5% Tax example
+    // Davčna stopnja iz baze (prej hardcoded 5%) — fallback na 0% če ni naložen
+    const taxRate = getTaxRate();
+    const tax = totalAmount * taxRate;
     const finalTotal = totalAmount + tax;
 
     const handlePlaceOrder = async () => {
@@ -304,7 +309,7 @@ const OrderPage = () => {
                                     <span>Rs {totalAmount.toFixed(2)}</span>
                                 </div>
                                 <div className="flex justify-between text-gray-500">
-                                    <span>Tax (5%)</span>
+                                    <span>Tax ({activeTax ? activeTax.name : 'Default'} {Math.round(taxRate * 100)}%)</span>
                                     <span>Rs {tax.toFixed(2)}</span>
                                 </div>
                                 <div className="flex justify-between text-lg font-bold text-gray-900 dark:text-white pt-2 border-t">

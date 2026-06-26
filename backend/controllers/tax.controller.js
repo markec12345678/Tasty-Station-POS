@@ -19,6 +19,20 @@ const getTaxes = async (req, res) => {
     }
 };
 
+// Javni endpoint — vrne prvi aktivni tax (uporablja se pri checkout-u).
+// Če noben ni aktiven, vrne default rate 0%.
+const getActiveTax = async (req, res) => {
+    try {
+        const tax = await Tax.findOne({ isActive: true });
+        res.status(200).json({
+            success: true,
+            tax: tax || { name: "Default", rate: 0, isActive: false }
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
 const updateTax = async (req, res) => {
     try {
         const { id } = req.params;
@@ -41,4 +55,4 @@ const deleteTax = async (req, res) => {
     }
 };
 
-module.exports = { createTax, getTaxes, updateTax, deleteTax };
+module.exports = { createTax, getTaxes, getActiveTax, updateTax, deleteTax };

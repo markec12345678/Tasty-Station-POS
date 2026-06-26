@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
     BadgeQuestionMark,
     BringToFront,
@@ -18,38 +18,79 @@ import {
     Bell,
     ShoppingCart,
     Utensils,
+    Coffee,
 } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/store/useAuthStore'
+import { useOrderStore } from '@/store/useOrderStore'
+import useKitchenStore from '@/store/useKitchenStore'
+import { useTranslation } from 'react-i18next'
 
 const Sidebar = () => {
 
     const { authUser, logout } = useAuthStore()
-
+    const { stats, getStats } = useOrderStore()
+    const { kitchenOrders, fetchKitchenOrders } = useKitchenStore()
+    const { t } = useTranslation()
 
     const [collapsed, setCollapsed] = useState(false)
-    const [activeItem, setActiveItem] = useState('dashboard')
+    const location = useLocation()
+
+    // Naloži statistiko in kuhinjska naročila za real-time badge številke
+    useEffect(() => {
+        getStats();
+        fetchKitchenOrders();
+        // Osveži na vsakih 30 sekund
+        const interval = setInterval(() => {
+            getStats();
+            fetchKitchenOrders();
+        }, 30000);
+        return () => clearInterval(interval);
+    }, [getStats, fetchKitchenOrders]);
+
+    // Izračunaj aktivne badge številke iz realnih podatkov
+    const pendingCount = stats?.pendingOrders ?? 0;
+    const kitchenActiveCount = kitchenOrders?.length ?? 0;
+
+    // Aktivni item iz URL path
+    const getActiveFromPath = () => {
+        const path = location.pathname;
+        if (path === '/' || path === '/dashboard') return 'dashboard';
+        if (path.startsWith('/orders')) return 'orders';
+        if (path.startsWith('/waiter')) return 'waiter';
+        if (path.startsWith('/tables')) return 'tables';
+        if (path.startsWith('/dishes')) return 'dishes';
+        if (path.startsWith('/inventory')) return 'inventory';
+        if (path.startsWith('/kitchen')) return 'kitchen';
+        if (path.startsWith('/admin')) return 'admin-panel';
+        return 'dashboard';
+    };
+    const activeItem = getActiveFromPath();
 
     const menuItems = [
-        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, badge: 0, link: '/dashboard' },
+        { id: 'dashboard', label: t('nav.dashboard'), icon: LayoutDashboard, badge: 0, link: '/dashboard' },
 
-        { id: 'orders', label: 'Order Line', icon: ShoppingCart, badge: 3, link: '/orders' },
-        { id: 'tables', label: 'Manage Tables', icon: Grid2x2Check, badge: 0, link: '/tables' },
-        { id: 'dishes', label: 'Manage Orders', icon: Hamburger, badge: 12, link: '/dishes' },
-        { id: 'inventory', label: 'Inventory', icon: Package, badge: 5, link: '/inventory' },
+        { id: 'orders', label: t('nav.orders'), icon: ShoppingCart, badge: pendingCount, link: '/orders' },
+        // Waiter Terminal — samo za waiter/manager/admin vloge
+        ...(authUser?.role === 'waiter' || authUser?.role === 'manager' || authUser?.role === 'admin'
+            ? [{ id: 'waiter', label: t('nav.waiter'), icon: Coffee, badge: 0, link: '/waiter' }]
+            : []),
+        { id: 'tables', label: t('nav.tables'), icon: Grid2x2Check, badge: 0, link: '/tables' },
+        { id: 'dishes', label: t('nav.dishes'), icon: Hamburger, badge: kitchenActiveCount, link: '/dishes' },
+        { id: 'inventory', label: t('nav.inventory'), icon: Package, badge: 0, link: '/inventory' },
         // { id: 'staff', label: 'Staff Management', icon: ChefHat, badge: 0, link: '/staff' },
         // { id: 'users', label: 'Manage Users', icon: UserRoundCog, badge: 0, link: '/users' },
         // { id: 'customers', label: 'Customers', icon: Users, badge: 0, link: '/customers' },
-        { id: 'kitchen', label: 'Kitchen Board', icon: Utensils, badge: 0, link: '/kitchen' },
+        { id: 'kitchen', label: t('nav.kitchen'), icon: Utensils, badge: kitchenActiveCount, link: '/kitchen' },
         ...(authUser?.role === 'admin' ? [
-            { id: 'admin-panel', label: 'Admin Panel', icon: UserRoundCog, badge: 0, link: '/admin' }
+            { id: 'admin-panel', label: t('nav.admin'), icon: UserRoundCog, badge: 0, link: '/admin' }
         ] : [])
     ]
 
     const bottomItems = [
-        { id: 'settings', label: 'Settings', icon: Settings, link: '/settings' },
-        { id: 'help', label: 'Help Center', icon: HelpCircle, link: '/help' },
+        { id: 'settings', label: t('nav.settings'), icon: Settings, link: '/settings' },
+        { id: 'help', label: t('nav.help'), icon: HelpCircle, link: '/help' },
     ]
 
     return (
@@ -99,11 +140,11 @@ const Sidebar = () => {
                     {menuItems.map((item) => {
                         const Icon = item.icon
                         const isActive = activeItem === item.id
+                        const showBadge = item.badge > 0
 
                         return (
                             <Link key={item.id} to={item.link} className=''>
                                 <div
-                                    onClick={() => setActiveItem(item.id)}
                                     className={cn(
                                         "w-full flex items-center gap-4 px-3 py-2.5 rounded-lg transition-all duration-300 group cursor-pointer relative",
                                         "hover:bg-accent hover:text-accent-foreground",
@@ -119,6 +160,16 @@ const Sidebar = () => {
                                             isActive && "text-primary scale-110",
                                             collapsed && "mx-auto"
                                         )} />
+                                        {showBadge && !collapsed && (
+                                            <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[9px] font-bold rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-1 animate-pulse">
+                                                {item.badge > 99 ? '99+' : item.badge}
+                                            </span>
+                                        )}
+                                        {showBadge && collapsed && (
+                                            <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[9px] font-bold rounded-full min-w-[14px] h-[14px] flex items-center justify-center px-0.5">
+                                                {item.badge > 9 ? '9+' : item.badge}
+                                            </span>
+                                        )}
                                     </div>
                                     {!collapsed && (
                                         <>
@@ -147,7 +198,6 @@ const Sidebar = () => {
                     return (
                         <Link key={item.id} to={item.link}>
                             <div
-                                onClick={() => setActiveItem(item.id)}
                                 className={cn(
                                     "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-300 cursor-pointer",
                                     "hover:bg-accent hover:text-accent-foreground",

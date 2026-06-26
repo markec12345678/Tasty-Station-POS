@@ -2,13 +2,15 @@ const { createClient } = require('redis');
 
 const clientOptions = {
     socket: {
-        connectTimeout: 10000, // 10 seconds timeout
+        connectTimeout: 3000, // 3 seconds timeout
         reconnectStrategy: (retries) => {
-            if (retries > 5) {
-                console.error('❌ Redis: Max retries exhausted. Stopping reconnection attempts.');
-                return new Error('Redis Max Retries Exhausted');
+            if (retries > 3) {
+                // Ne vrzemo Errorja — samo neha ponovno se povezovati.
+                // Cache se enostavno izklopi; backend nadaljuje delo.
+                console.warn('⚠️  Redis: unavailable after 3 retries — cache disabled (backend continues).');
+                return false;
             }
-            return Math.min(retries * 100, 3000); // Backoff strategy
+            return Math.min(retries * 100, 1000);
         }
     }
 };
@@ -31,14 +33,21 @@ redisClient.on('connect', () => console.log('⌚ Redis Client Connecting...'));
 redisClient.on('ready', () => console.log('✅ Redis Client Ready'));
 
 (async () => {
-    if (process.env.NODE_ENV === 'test') {
-        redisClient.isOpen = false;
+    // V test ali dev mode brez Redis host-a sploh ne poizkušamo povezati —
+    // backend deluje brez cache-a, kar je za dev OK.
+    const skipRedis = process.env.NODE_ENV === 'test'
+        || process.env.REDIS_SKIP === 'true'
+        || (!process.env.REDIS_URL && !process.env.REDIS_HOST);
+
+    if (skipRedis) {
+        console.log('ℹ️  Redis skipped (set REDIS_HOST or REDIS_URL to enable caching).');
         return;
     }
+
     try {
         await redisClient.connect();
     } catch (err) {
-        console.error('❌ Redis Connection Failed', err);
+        console.error('❌ Redis Connection Failed', err.message);
     }
 })();
 

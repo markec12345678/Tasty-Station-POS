@@ -28,11 +28,13 @@ import {
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useTranslation } from 'react-i18next';
 
 const Login = () => {
 
 
     const { login, isLoading } = useAuthStore();
+    const { t } = useTranslation();
 
 
     const [formData, setFormData] = useState({
@@ -81,10 +83,10 @@ const Login = () => {
                     <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-cyan-200/50 dark:border-cyan-800/50 shadow-xl shadow-cyan-500/5">
                         <CardHeader className="space-y-1 pb-6">
                             <CardTitle className="text-xl font-semibold text-gray-800 dark:text-white">
-                                Account Login
+                                {t('login.title')}
                             </CardTitle>
                             <CardDescription className="text-gray-600 dark:text-gray-400">
-                                Enter your credentials to access your dashboard
+                                {t('login.subtitle')}
                             </CardDescription>
                         </CardHeader>
 
@@ -93,7 +95,7 @@ const Login = () => {
                                 {/* Email Field */}
                                 <div className="space-y-2">
                                     <Label htmlFor="email" className="text-gray-700 dark:text-gray-300">
-                                        Email Address
+                                        {t('login.email')}
                                     </Label>
                                     <div className="relative group">
                                         <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 group-focus-within:text-cyan-600 dark:group-focus-within:text-cyan-400 size-4 transition-colors" />
@@ -114,7 +116,7 @@ const Login = () => {
                                 <div className="space-y-2">
                                     <div className="flex items-center justify-between">
                                         <Label htmlFor="password" className="text-gray-700 dark:text-gray-300">
-                                            Password
+                                            {t('login.password')}
                                         </Label>
                                         <Button
                                             type="button"
@@ -122,7 +124,7 @@ const Login = () => {
                                             className="h-auto p-0 text-sm text-cyan-600 hover:text-cyan-700 dark:text-cyan-400 dark:hover:text-cyan-300"
                                             onClick={handleForgotPassword}
                                         >
-                                            Forgot password?
+                                            {t('login.forgotPassword')}
                                         </Button>
                                     </div>
                                     <div className="relative group">
@@ -164,12 +166,12 @@ const Login = () => {
                                             htmlFor="rememberMe"
                                             className="text-sm text-gray-700 dark:text-gray-300 cursor-pointer"
                                         >
-                                            Remember me
+                                            {t('login.rememberMe')}
                                         </Label>
                                     </div>
                                     <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
                                         <Shield className="size-3" />
-                                        <span>Secure login</span>
+                                        <span>{t('login.secureLogin')}</span>
                                     </div>
                                 </div>
 
@@ -182,59 +184,25 @@ const Login = () => {
                                     {isLoading ? (
                                         <>
                                             <div className="size-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
-                                            Signing in...
+                                            {t('login.signingIn')}
                                         </>
                                     ) : (
                                         <>
                                             <LogIn className="size-4 mr-2 group-hover:translate-x-1 transition-transform" />
-                                            Sign In to Dashboard
+                                            {t('login.signIn')}
                                         </>
                                     )}
                                 </Button>
-
-                                {/* Divider */}
-                                <div className="relative">
-                                    <div className="absolute inset-0 flex items-center">
-                                        <Separator className="w-full" />
-                                    </div>
-                                    <div className="relative flex justify-center text-xs uppercase">
-                                        <span className="bg-white dark:bg-gray-900 px-2 text-gray-500 dark:text-gray-400">
-                                            Or continue with
-                                        </span>
-                                    </div>
-                                </div>
-
-                                {/* Social Login */}
-                                <div className="grid grid-cols-2 gap-3">
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        className="h-11 border-gray-300 dark:border-gray-700 hover:border-cyan-400 hover:bg-cyan-50/50 dark:hover:bg-cyan-950/30"
-                                        onClick={() => handleSocialLogin('google')}
-                                    >
-                                        <Globe className="size-4 mr-2" />
-                                        Google
-                                    </Button>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        className="h-11 border-gray-300 dark:border-gray-700 hover:border-cyan-400 hover:bg-cyan-50/50 dark:hover:bg-cyan-950/30"
-                                        onClick={() => handleSocialLogin('github')}
-                                    >
-                                        <Smartphone className="size-4 mr-2" />
-                                        GitHub
-                                    </Button>
-                                </div>
                             </CardContent>
 
                             <CardFooter className="flex flex-col space-y-4 pt-2">
                                 <div className="text-center text-sm text-gray-600 dark:text-gray-400">
-                                    Don't have an account?{" "}
+                                    {t('login.noAccount')}{" "}
                                     <Link
                                         to="/signup"
                                         className="font-semibold text-cyan-600 hover:text-cyan-700 dark:text-cyan-400 dark:hover:text-cyan-300 underline-offset-4 hover:underline transition-colors"
                                     >
-                                        Create account
+                                        {t('login.createAccount')}
                                     </Link>
                                 </div>
 
@@ -242,7 +210,7 @@ const Login = () => {
                                 <div className="text-center">
                                     <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-cyan-50 dark:bg-cyan-950/30 rounded-full text-xs text-cyan-700 dark:text-cyan-300">
                                         <Fingerprint className="size-3" />
-                                        <span>Your data is encrypted and secure</span>
+                                        <span>{t('login.dataEncrypted')}</span>
                                     </div>
                                 </div>
                             </CardFooter>
@@ -253,19 +221,19 @@ const Login = () => {
                     <div className="text-center space-y-2">
                         <div className="flex items-center justify-center gap-4 text-xs text-gray-500 dark:text-gray-400">
                             <button className="hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors">
-                                Privacy Policy
+                                {t('login.privacyPolicy')}
                             </button>
                             <span>•</span>
                             <button className="hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors">
-                                Terms of Service
+                                {t('login.terms')}
                             </button>
                             <span>•</span>
                             <button className="hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors">
-                                Help Center
+                                {t('login.helpCenter')}
                             </button>
                         </div>
                         <p className="text-xs text-gray-400 dark:text-gray-500">
-                            © 2024 Education Platform. All rights reserved.
+                            {t('footer.copyright')}
                         </p>
                     </div>
                 </div>
@@ -275,13 +243,13 @@ const Login = () => {
             <div className="fixed top-10 left-10 hidden lg:block">
                 <div className="flex items-center gap-2 text-cyan-700 dark:text-cyan-300">
                     <Sparkles className="size-5 animate-pulse" />
-                    <span className="text-sm font-medium">Secure Login</span>
+                    <span className="text-sm font-medium">{t('login.secureLogin')}</span>
                 </div>
             </div>
             <div className="fixed bottom-10 right-10 hidden lg:block">
                 <div className="flex items-center gap-2 text-cyan-700 dark:text-cyan-300">
                     <KeyRound className="size-5 animate-pulse" />
-                    <span className="text-sm font-medium">Encrypted Connection</span>
+                    <span className="text-sm font-medium">{t('login.encryptedConnection')}</span>
                 </div>
             </div>
         </div>

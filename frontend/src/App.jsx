@@ -20,6 +20,7 @@ import Inventory from './pages/dashboard/page/Inventory'
 import Dishes from './pages/dashboard/page/Dishes'
 import Customer from './pages/dashboard/page/Customer'
 import KitchenDashboard from './pages/dashboard/page/KitchenDashboard'
+import WaiterTerminal from './pages/dashboard/page/WaiterTerminal'
 
 // Admin Pages (Lazy Loaded)
 const AdminDashboard = lazy(() => import('./pages/Admin/pages/AdminDashboard'));
@@ -109,6 +110,7 @@ const App = () => {
           <Route path="dashboard" element={<DashboardHome />} />
           <Route path="orders" element={<OrderPage />} />
           <Route path="tables" element={<ManageTables />} />
+          <Route path="waiter" element={<WaiterTerminal />} />
           <Route path="inventory" element={<Inventory />} />
           <Route path="dishes" element={<Dishes />} />
           <Route path="customers" element={<Customer />} />

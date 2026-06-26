@@ -1,0 +1,32 @@
+version: "3.9"
+
+# Uporaba: docker compose up -d
+# Požene MongoDB na :27017 in Redis na :6379
+
+services:
+  mongodb:
+    image: mongo:7
+    container_name: tastystation-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: rootpassword
+      MONGO_INITDB_DATABASE: tastystation
+    volumes:
+      - mongo_data:/data/db
+
+  redis:
+    image: redis:7-alpine
+    container_name: tastystation-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+
+volumes:
+  mongo_data:
+  redis_data:

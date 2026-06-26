@@ -16,6 +16,8 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { toast } from 'sonner';
 
 const ManageTables = () => {
     const { tables, getTables, deleteTable, reserveTable, cancelReservation, isLoading } = useTableStore();
@@ -24,6 +26,27 @@ const ManageTables = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingTable, setEditingTable] = useState(null);
     const [selectedTable, setSelectedTable] = useState(null);
+
+    // Confirmation dialog state (zamenja window.confirm)
+    const [confirmDialog, setConfirmDialog] = useState({
+        open: false,
+        title: "",
+        description: "",
+        confirmLabel: "Confirm",
+        onConfirm: null,
+    });
+
+    const openConfirm = (opts) => setConfirmDialog({
+        open: true,
+        title: opts.title || "Are you sure?",
+        description: opts.description || "",
+        confirmLabel: opts.confirmLabel || "Confirm",
+        cancelLabel: opts.cancelLabel || "Cancel",
+        variant: opts.variant || "default",
+        onConfirm: opts.onConfirm,
+    });
+
+    const closeConfirm = () => setConfirmDialog(prev => ({ ...prev, open: false }));
 
     // Booking Form State
     const [bookingForm, setBookingForm] = useState({
@@ -61,10 +84,18 @@ const ManageTables = () => {
 
     const handleDeleteClick = async (id, e) => {
         if (e) e.stopPropagation();
-        if (window.confirm("Are you sure you want to delete this table?")) {
-            await deleteTable(id);
-            if (selectedTable?._id === id) setSelectedTable(null);
-        }
+        openConfirm({
+            title: "Delete table?",
+            description: "This action cannot be undone. The table will be permanently removed from the floor plan.",
+            confirmLabel: "Delete",
+            variant: "destructive",
+            onConfirm: async () => {
+                await deleteTable(id);
+                if (selectedTable?._id === id) setSelectedTable(null);
+                toast.success("Table deleted");
+                closeConfirm();
+            },
+        });
     };
 
     const handleTableClick = (table) => {
@@ -85,23 +116,31 @@ const ManageTables = () => {
 
         const result = await reserveTable(selectedTable._id, bookingForm);
         if (result.success) {
-            alert("Table reserved successfully!");
+            toast.success("Table reserved successfully!");
             getTables();
         } else {
-            alert("Failed to reserve: " + result.message);
+            toast.error("Failed to reserve: " + (result.message || "Unknown error"));
         }
     };
 
     const handleCancelReservation = async () => {
         if (!selectedTable) return;
-        if (window.confirm("Cancel this reservation?")) {
-            const result = await cancelReservation(selectedTable._id);
-            if (result.success) {
-                getTables();
-            } else {
-                alert("Failed to cancel: " + result.message);
-            }
-        }
+        openConfirm({
+            title: "Cancel reservation?",
+            description: "The table will become available for new bookings. Any client booking history will be retained.",
+            confirmLabel: "Cancel reservation",
+            variant: "destructive",
+            onConfirm: async () => {
+                const result = await cancelReservation(selectedTable._id);
+                if (result.success) {
+                    toast.success("Reservation cancelled");
+                    getTables();
+                } else {
+                    toast.error("Failed to cancel: " + (result.message || "Unknown error"));
+                }
+                closeConfirm();
+            },
+        });
     };
 
     return (
@@ -259,15 +298,21 @@ const ManageTables = () => {
                                         <div className="rounded-md border p-4 space-y-3 bg-muted/20">
                                             <div className="flex justify-between items-center text-sm">
                                                 <span className="text-muted-foreground">Customer</span>
-                                                <span className="font-medium">{selectedTable.currentSession?.customerName || "Walk-in Guest"}</span>
+                                                <span className="font-medium">{selectedTable.currentOrder?.clientName || selectedTable.currentSession?.customerName || "Walk-in Guest"}</span>
                                             </div>
                                             <div className="flex justify-between items-center text-sm">
                                                 <span className="text-muted-foreground">Arrival</span>
-                                                <span className="font-medium">{selectedTable.currentSession?.startTime || "10 mins ago"}</span>
+                                                <span className="font-medium">
+                                                    {selectedTable.currentOrder?.createdAt
+                                                        ? format(new Date(selectedTable.currentOrder.createdAt), 'HH:mm')
+                                                        : selectedTable.currentSession?.startTime || "—"}
+                                                </span>
                                             </div>
                                             <div className="flex justify-between items-center text-sm pt-2 border-t">
                                                 <span className="text-muted-foreground">Running Total</span>
-                                                <span className="font-medium text-primary">Rs. 1,250</span>
+                                                <span className="font-medium text-primary">
+                                                    Rs {(selectedTable.currentOrder?.totalAmount ?? 0).toLocaleString()}
+                                                </span>
                                             </div>
                                         </div>
                                         <Button className="w-full rounded-md">
@@ -413,6 +458,31 @@ const ManageTables = () => {
                 onClose={() => setIsModalOpen(false)}
                 tableToEdit={editingTable}
             />
+
+            {/* Confirmation Dialog (zamenja window.confirm) */}
+            <Dialog open={confirmDialog.open} onOpenChange={(open) => !open && closeConfirm()}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className={cn(confirmDialog.variant === "destructive" && "text-red-600")}>
+                            {confirmDialog.title}
+                        </DialogTitle>
+                        <DialogDescription>
+                            {confirmDialog.description}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="gap-2">
+                        <Button variant="outline" onClick={closeConfirm}>
+                            {confirmDialog.cancelLabel || "Cancel"}
+                        </Button>
+                        <Button
+                            variant={confirmDialog.variant === "destructive" ? "destructive" : "default"}
+                            onClick={() => confirmDialog.onConfirm?.()}
+                        >
+                            {confirmDialog.confirmLabel}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 };

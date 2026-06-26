@@ -20,7 +20,12 @@ const getTables = async (req, res) => {
     try {
         const tables = await Table.find()
             .populate("person", "name email phoneNumber avatar")
-            .populate("client", "name phone email avatar totalSpent");
+            .populate("client", "name phone email avatar totalSpent")
+            .populate({
+                path: "currentOrder",
+                select: "orderId totalAmount status createdAt clientName clientPhone items",
+                populate: { path: "items.menuItem", select: "name price" }
+            });
         res.status(200).json({ success: true, tables });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });

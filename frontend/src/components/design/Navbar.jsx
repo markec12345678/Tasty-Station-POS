@@ -1,6 +1,6 @@
 import React from 'react'
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar'
-import { Bell, Search, Menu, Settings, Sun, Moon, Computer, LogOut, User, CreditCard, Users, Check } from 'lucide-react'
+import { Bell, Search, Menu, Settings, Sun, Moon, Computer, LogOut, User, CreditCard, Users, Check, Globe } from 'lucide-react'
 import { Button } from '../ui/button'
 import {
     DropdownMenu,
@@ -12,11 +12,14 @@ import {
 } from "../ui/dropdown-menu"
 import { useThemeStore } from '../../store/useThemeStore'
 import { useAuthStore } from '../../store/useAuthStore'
+import { useTranslation } from 'react-i18next'
+import { changeLanguage, availableLanguages } from '../../i18n'
 import { Link } from 'react-router-dom'
 
 const Navbar = () => {
     const { logout, authUser } = useAuthStore();
     const { theme, setTheme } = useThemeStore();
+    const { t, i18n } = useTranslation();
 
     return (
         <nav className="sticky top-0 z-50 w-full border-b bg-background">
@@ -87,6 +90,43 @@ const Navbar = () => {
                             <span className="absolute -top-1 -right-1 size-2 bg-red-500 rounded-full border border-background" />
                         </Button>}
 
+
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    aria-label="Language"
+                                    className="h-9 w-9 rounded-md hover:bg-accent transition-colors"
+                                >
+                                    <Globe className="h-4 w-4 text-muted-foreground" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent
+                                align="end"
+                                className="w-44 bg-background border-border shadow-lg rounded-lg"
+                            >
+                                <DropdownMenuLabel className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                    Jezik / Language
+                                </DropdownMenuLabel>
+                                <DropdownMenuSeparator className="bg-border my-1" />
+                                <div className="p-1 space-y-0.5">
+                                    {availableLanguages.map(lang => (
+                                        <DropdownMenuItem
+                                            key={lang.code}
+                                            className="px-3 py-2.5 text-sm cursor-pointer rounded-md hover:bg-accent focus:bg-accent transition-colors flex items-center gap-2"
+                                            onClick={() => changeLanguage(lang.code)}
+                                        >
+                                            <span className="text-base">{lang.flag}</span>
+                                            <span>{lang.label}</span>
+                                            {i18n.language === lang.code && (
+                                                <Check className="h-3 w-3 ml-auto text-primary" />
+                                            )}
+                                        </DropdownMenuItem>
+                                    ))}
+                                </div>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
 
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
