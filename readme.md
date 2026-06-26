@@ -106,6 +106,43 @@
 - **Save & Reset:** Batch save positions or reset to auto-arrange.
 - **Edit/Lock Toggle:** Prevent accidental drags with lock mode.
 
+### 📱 QR Code Ordering (NEW)
+- **Customer-Facing:** Guests scan QR code on their table to browse menu and place orders.
+- **No App Required:** Works in any mobile browser — no download needed.
+- **Real-Time:** Orders appear instantly in KDS and POS via Socket.io.
+- **QR Code Generator:** Admin generates and prints branded QR codes for each table.
+- **Mobile-Optimized:** Touch-friendly interface with search, category filters, cart.
+
+### 🏢 Multi-Outlet Sync (NEW)
+- **Chain Management:** Manage multiple restaurant locations from one dashboard.
+- **Outlet Model:** Each outlet has its own tables, inventory, staff, but shared menu and clients.
+- **Opening Hours:** Per-outlet opening hours with closed-day support.
+- **Outlet-Specific:** Currency override, tax number, manager assignment.
+- **Primary Outlet:** Designate HQ outlet for central administration.
+
+### 🇸🇮 FURS Integration (NEW — Slovenian Fiscal System)
+- **Davčno Potrjevanje:** Automatic fiscal invoice confirmation for Slovenian compliance.
+- **ZOI Generation:** Zaščitna Oznaka Izdajatelja (MD5 signature with certificate).
+- **EOR Tracking:** Enkratna Identifikacijska Oznaka Računa from FURS.
+- **QR Code on Receipt:** FURS-compliant QR code for invoice verification.
+- **Invoice Numbering:** Sequential per-outlet invoice numbers (OUTLET_CODE-YEAR-SEQUENCE).
+- **Retry Failed:** Admin can retry failed FURS confirmations.
+- **10-Year Archive:** FiscalInvoice model preserves all data for legal retention.
+- **Test/Production:** Configurable FURS endpoints (test vs production).
+
+### 📊 Comprehensive Reports Dashboard (NEW)
+- **Single-Call Dashboard:** 8 aggregations in one API call (sales trend, P&L, top items, cashiers, status breakdown, payment methods, hourly distribution, summary KPIs).
+- **Custom Date Range:** Filter by daily/weekly/monthly/yearly or custom start/end dates.
+- **Category Performance:** Revenue breakdown by menu category.
+- **Visual Charts:** Bar charts for sales trend, hourly distribution, category performance.
+
+### 🛡️ Audit Log (NEW)
+- **30+ Action Types:** Tracks logins, orders, payments, backups, loyalty, currency changes.
+- **Filtering:** By action, entity, user, status, date range, text search.
+- **Statistics:** Top actions, status breakdown, active users.
+- **Auto-Expire:** Logs auto-delete after 365 days (configurable).
+- **Non-Blocking:** Audit logging never breaks main application flow.
+
 ---
 
 ## 🌍 Internationalization (i18n)
@@ -124,9 +161,9 @@ Full multi-language support with **Slovenian (default)** and **English**:
 Tasty-Station-POS/
 ├── backend/                    # Express API & Business Logic
 │   ├── config/                 # Database, Cloudinary, Socket.io configs
-│   ├── controllers/            # 12 controllers (order, table, loyalty, backup, ...)
-│   ├── models/                 # 10 Mongoose models (User, Order, Table, Reward, ...)
-│   ├── routers/                # 14 API routers
+│   ├── controllers/            # 16 controllers (order, loyalty, backup, currency, audit, forecast, outlet, ...)
+│   ├── models/                 # 15 Mongoose models (User, Order, Table, Reward, Outlet, FiscalInvoice, ...)
+│   ├── routers/                # 20 API routers
 │   ├── middlewares/            # Auth, cache, error, validators
 │   ├── redis/                  # Redis client with graceful fallback
 │   ├── utils/                  # ApiError, logger, genrateToken
@@ -136,13 +173,14 @@ Tasty-Station-POS/
 │   └── data.js                 # Demo data (12 users, 25 items, 15 tables, 6 rewards)
 ├── frontend/                   # Vite + React Client
 │   ├── src/
-│   │   ├── components/         # 24 Shadcn UI components + chat widget
+│   │   ├── components/         # 25 Shadcn UI components + chat widget
 │   │   ├── pages/
 │   │   │   ├── Auth/           # Login, Signup (i18n)
 │   │   │   ├── dashboard/      # Cashier/Waiter/Kitchen pages
-│   │   │   └── Admin/          # 11 admin pages (lazy-loaded)
-│   │   ├── store/              # 12 Zustand stores (auth, order, kitchen, loyalty, ...)
-│   │   ├── i18n/               # Slovenian + English translations (NEW)
+│   │   │   ├── Admin/          # 17 admin pages (lazy-loaded)
+│   │   │   └── QR/             # Customer-facing QR ordering page
+│   │   ├── store/              # 16 Zustand stores (auth, order, kitchen, loyalty, audit, forecast, ...)
+│   │   ├── i18n/               # Slovenian + English translations
 │   │   └── axios/              # Configured interceptors
 │   └── vite.config.js
 ├── docs/                       # Screenshots, diagrams, reports
@@ -291,36 +329,52 @@ VITE_API_BASE_URL=http://localhost:3000
 
 ## 📋 API Endpoints
 
-| Method | Endpoint                    | Description                          | Auth     |
-|--------|-----------------------------|--------------------------------------|----------|
-| POST   | `/api/users/login`          | User login                           | Public   |
-| POST   | `/api/users/register`       | User registration                    | Public   |
-| GET    | `/api/users/me`             | Current user profile                 | User     |
-| GET    | `/api/menu/item`            | List menu items                      | Public   |
-| POST   | `/api/menu/item`            | Create menu item                     | Admin    |
-| GET    | `/api/table`                | List tables                          | User     |
-| PATCH  | `/api/table/positions`      | Batch update table positions         | Admin    |
-| POST   | `/api/orders`               | Create order                         | User     |
-| GET    | `/api/orders/kitchen`       | Kitchen orders                       | User     |
-| POST   | `/api/orders/:id/payment`   | Add payment (split support)          | User     |
-| GET    | `/api/tax/active`           | Get active tax rate                  | Public   |
-| GET    | `/api/loyalty/client/:id`   | Client loyalty info                  | User     |
-| POST   | `/api/loyalty/redeem`       | Redeem reward                        | User     |
-| GET    | `/api/loyalty/rewards`      | List rewards                         | User     |
-| GET    | `/api/backup`               | Download ZIP backup                  | Admin    |
-| POST   | `/api/backup/restore`       | Restore from ZIP                     | Admin    |
-| GET    | `/api/backup/stats`         | Database record counts               | Admin    |
+| Method | Endpoint                         | Description                          | Auth     |
+|--------|----------------------------------|--------------------------------------|----------|
+| POST   | `/api/users/login`               | User login                           | Public   |
+| POST   | `/api/users/register`            | User registration                    | Public   |
+| GET    | `/api/users/me`                  | Current user profile                 | User     |
+| GET    | `/api/menu/item`                 | List menu items                      | Public   |
+| POST   | `/api/menu/item`                 | Create menu item                     | Admin    |
+| GET    | `/api/table`                     | List tables                          | User     |
+| PATCH  | `/api/table/positions`           | Batch update table positions         | Admin    |
+| POST   | `/api/orders`                    | Create order                         | User     |
+| GET    | `/api/orders/kitchen`            | Kitchen orders                       | User     |
+| POST   | `/api/orders/:id/payment`        | Add payment (split support)          | User     |
+| GET    | `/api/tax/active`                | Get active tax rate                  | Public   |
+| GET    | `/api/loyalty/client/:id`        | Client loyalty info                  | User     |
+| POST   | `/api/loyalty/redeem`            | Redeem reward                        | User     |
+| GET    | `/api/loyalty/rewards`           | List rewards                         | User     |
+| GET    | `/api/currency`                  | Get currency settings                | Public   |
+| GET    | `/api/currency/presets`          | List currency presets                | Public   |
+| POST   | `/api/currency/preset/:code`     | Apply currency preset                | Admin    |
+| GET    | `/api/audit`                     | List audit logs                      | Admin    |
+| GET    | `/api/audit/stats`               | Audit log statistics                 | Admin    |
+| GET    | `/api/backup`                    | Download ZIP backup                  | Admin    |
+| POST   | `/api/backup/restore`            | Restore from ZIP                     | Admin    |
+| GET    | `/api/inventory-forecast/forecast` | AI inventory forecast              | User     |
+| GET    | `/api/reports/dashboard`         | Comprehensive reports dashboard      | User     |
+| GET    | `/api/reports/category-performance` | Category performance              | User     |
+| GET    | `/api/outlets`                   | List all outlets                     | User     |
+| POST   | `/api/outlets`                   | Create outlet                        | Admin    |
+| POST   | `/api/outlets/:id/set-primary`   | Set primary outlet                   | Admin    |
+| GET    | `/api/fiscal`                    | List fiscal invoices                 | User     |
+| GET    | `/api/fiscal/stats`              | Fiscal statistics                    | User     |
+| POST   | `/api/fiscal/:id/retry`          | Retry failed FURS confirmation       | Admin    |
+| GET    | `/api/public/menu`               | Public menu (for QR ordering)        | Public   |
+| GET    | `/api/public/table/:id`          | Public table info                    | Public   |
+| POST   | `/api/public/order`              | Guest places order via QR            | Public   |
 
 ---
 
 ## 🛣️ Roadmap
 
-- [ ] **AI Inventory Forecasting**: Predicting stock depletion using Gemini AI.
-- [ ] **Multi-Outlet Sync**: Centralized dashboard for restaurant chains.
-- [ ] **QR Code Ordering**: Customer-facing self-service interface.
+- [x] ~~**AI Inventory Forecasting**: Predicting stock depletion using Gemini AI.~~ ✅ Done
+- [x] ~~**Multi-Outlet Sync**: Centralized dashboard for restaurant chains.~~ ✅ Done
+- [x] ~~**QR Code Ordering**: Customer-facing self-service interface.~~ ✅ Done
+- [x] ~~**Slovenian Fiskalni Sistem**: FURS integration (ZOI, EOR, QR).~~ ✅ Done (architecture ready — requires FURS cert)
 - [ ] **Mobile App (React Native)**: Native POS for handheld device speed.
-- [ ] **Slovenian Fiskalni Sistem**: Davčno potrdilo (FURS integration).
-- [ ] **Multi-currency Support**: EUR, USD, Rs.
+- [ ] **Multi-currency Exchange Rates**: Live EUR/USD/Rs conversion.
 
 ---
 

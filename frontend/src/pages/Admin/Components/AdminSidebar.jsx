@@ -25,6 +25,7 @@ import {
     Coins,
     BarChart3,
     QrCode,
+    Building2,
 } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import { cn } from '@/lib/utils'
@@ -53,6 +54,7 @@ const AdminSidebar = () => {
         { id: 'currency', label: 'Currency Settings', icon: Coins, badge: 0, link: '/admin/currency' },
         { id: 'backup', label: 'Backup & Restore', icon: Database, badge: 0, link: '/admin/backup' },
         { id: 'audit', label: 'Audit Log', icon: Shield, badge: 0, link: '/admin/audit' },
+        { id: 'outlets', label: 'Outlets', icon: Building2, badge: 0, link: '/admin/outlets' },
         { id: 'pos-terminal', label: 'POS Terminal', icon: BringToFront, badge: 0, link: '/orders' },
     ]
 

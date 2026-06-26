@@ -42,6 +42,7 @@ const ForecastPage = lazy(() => import('./pages/Admin/pages/ForecastPage'));
 const CurrencySettings = lazy(() => import('./pages/Admin/pages/CurrencySettings'));
 const ReportsDashboard = lazy(() => import('./pages/Admin/pages/ReportsDashboard'));
 const QRCodeGenerator = lazy(() => import('./pages/Admin/pages/QRCodeGenerator'));
+const OutletManagement = lazy(() => import('./pages/Admin/pages/OutletManagement'));
 
 import ChatWidget from './components/chat/ChatWidget';
 import { Toaster } from 'sonner';
@@ -208,6 +209,11 @@ const App = () => {
           <Route path="/admin/qr-codes" element={
             <Suspense fallback={<PageLoader />}>
               <QRCodeGenerator />
+            </Suspense>
+          } />
+          <Route path="/admin/outlets" element={
+            <Suspense fallback={<PageLoader />}>
+              <OutletManagement />
             </Suspense>
           } />
         </Route>
