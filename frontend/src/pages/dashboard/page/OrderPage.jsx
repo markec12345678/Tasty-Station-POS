@@ -107,7 +107,26 @@ const OrderPage = () => {
             serviceChargeRate: serviceChargeRate,
         };
 
-        await placeOrder(orderData);
+        try {
+            await placeOrder(orderData);
+        } catch (error) {
+            // Network error — enqueue to offline queue
+            if (error.code === "ERR_NETWORK" || !navigator.onLine) {
+                const { offlineQueue } = await import("@/utils/offlineQueue");
+                await offlineQueue.enqueue({
+                    type: "order",
+                    endpoint: "/orders",
+                    method: "POST",
+                    body: orderData,
+                    tableId: orderData.tableId,
+                });
+                toast.info("Offline — order queued. Will sync when online.");
+                clearCart();
+                setCheckoutStep(1);
+            } else {
+                toast.error(error.response?.data?.message || "Failed to place order");
+            }
+        }
     };
 
     // Printing Logic

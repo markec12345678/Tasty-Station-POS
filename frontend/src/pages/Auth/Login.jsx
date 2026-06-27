@@ -29,12 +29,14 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useTranslation } from 'react-i18next';
+import PinLogin from '@/components/PinLogin';
 
 const Login = () => {
 
 
     const { login, isLoading } = useAuthStore();
     const { t } = useTranslation();
+    const [showPin, setShowPin] = useState(false);
 
 
     const [formData, setFormData] = useState({
@@ -193,6 +195,17 @@ const Login = () => {
                                         </>
                                     )}
                                 </Button>
+
+                                {/* PIN Quick Login */}
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    className="w-full h-11 border-gray-300 dark:border-gray-700 hover:border-cyan-400 hover:bg-cyan-50/50 dark:hover:bg-cyan-950/30"
+                                    onClick={() => setShowPin(true)}
+                                >
+                                    <Fingerprint className="size-4 mr-2 text-cyan-600 dark:text-cyan-400" />
+                                    PIN Quick Login
+                                </Button>
                             </CardContent>
 
                             <CardFooter className="flex flex-col space-y-4 pt-2">
@@ -252,6 +265,9 @@ const Login = () => {
                     <span className="text-sm font-medium">{t('login.encryptedConnection')}</span>
                 </div>
             </div>
+
+            {/* PIN Login Modal */}
+            {showPin && <PinLogin onClose={() => setShowPin(false)} />}
         </div>
     );
 };

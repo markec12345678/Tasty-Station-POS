@@ -71,6 +71,48 @@ const login = async (req, res) => {
     }
 };
 
+/**
+ * POST /api/users/pin-login
+ * HITRI PIN login za POS terminal — 4-mestna koda namesto email/password.
+ *
+ * Body: { pin: "1234" }
+ * Vrne: { success, user, token } — enako kot email login
+ */
+const pinLogin = async (req, res) => {
+    try {
+        const { pin } = req.body;
+        if (!pin || pin.length !== 4) {
+            return res.status(400).json({
+                success: false,
+                message: "PIN must be 4 digits"
+            });
+        }
+
+        const user = await User.findOne({ pin, isActive: true, role: { $ne: "client" } })
+            .select("-password");
+
+        if (!user) {
+            return res.status(401).json({
+                success: false,
+                message: "Invalid PIN"
+            });
+        }
+
+        genrateToken(user._id, res);
+        res.status(200).json({
+            success: true,
+            message: "PIN login successful",
+            user
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: "Internal Server Error",
+            error: error.message
+        });
+    }
+};
+
 const getAllStaff = async (req, res) => {
     try {
         const staff = await User.find({ role: { $ne: 'client' } }).select('-password');
@@ -205,4 +247,4 @@ const deleteStaff = async (req, res) => {
 };
 
 
-module.exports = { register, login, getAllStaff, createNewStaff, updateStaff, toggleStaffStatus, deleteStaff };
+module.exports = { register, login, pinLogin, getAllStaff, createNewStaff, updateStaff, toggleStaffStatus, deleteStaff };

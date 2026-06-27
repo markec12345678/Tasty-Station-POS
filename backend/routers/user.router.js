@@ -1,8 +1,10 @@
-const { register, login, getAllStaff, createNewStaff, updateStaff, toggleStaffStatus, deleteStaff } = require('../controllers/user.controller');
+const { register, login, pinLogin, getAllStaff, createNewStaff, updateStaff, toggleStaffStatus, deleteStaff } = require('../controllers/user.controller');
 const { body } = require('express-validator');
 const { protectedRoute, isAdmin } = require('../middlewares/auth.middleware');
+const { requirePermission } = require('../middlewares/rbac.middleware');
 const router = require('express').Router();
 
+// Public auth routes
 router.post('/register',
     [
         body("name").trim().notEmpty().withMessage("Name is required"),
@@ -19,9 +21,12 @@ router.post('/login',
     ],
     login);
 
+// PIN quick login — POS terminal
+router.post('/pin-login', pinLogin);
+
 router.get('/me', protectedRoute, (req, res) => {
     res.json(req.user);
-})
+});
 
 router.post('/logout', (req, res) => {
     const isProduction = process.env.NODE_ENV === "production";
@@ -33,14 +38,14 @@ router.post('/logout', (req, res) => {
     res.json({
         success: true,
         message: "User logged out successfully"
-    })
-})
+    });
+});
 
-// Staff Management Routes (Admin Only)
-router.get('/staff', protectedRoute, isAdmin, getAllStaff);
-router.post('/staff', protectedRoute, isAdmin, createNewStaff);
-router.put('/staff/:id', protectedRoute, isAdmin, updateStaff);
-router.patch('/staff/:id/status', protectedRoute, isAdmin, toggleStaffStatus);
-router.delete('/staff/:id', protectedRoute, isAdmin, deleteStaff);
+// Staff Management Routes (RBAC protected)
+router.get('/staff', protectedRoute, requirePermission("users:read"), getAllStaff);
+router.post('/staff', protectedRoute, requirePermission("users:create"), createNewStaff);
+router.put('/staff/:id', protectedRoute, requirePermission("users:update"), updateStaff);
+router.patch('/staff/:id/status', protectedRoute, requirePermission("users:update"), toggleStaffStatus);
+router.delete('/staff/:id', protectedRoute, requirePermission("users:delete"), deleteStaff);
 
 module.exports = router;
