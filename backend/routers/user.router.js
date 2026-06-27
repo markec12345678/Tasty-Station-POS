@@ -1,4 +1,4 @@
-const { register, login, pinLogin, getAllStaff, createNewStaff, updateStaff, toggleStaffStatus, deleteStaff } = require('../controllers/user.controller');
+const { register, login, pinLogin, getAllStaff, createNewStaff, updateStaff, updatePin, toggleStaffStatus, deleteStaff } = require('../controllers/user.controller');
 const { body } = require('express-validator');
 const { protectedRoute, isAdmin } = require('../middlewares/auth.middleware');
 const { requirePermission } = require('../middlewares/rbac.middleware');
@@ -45,6 +45,7 @@ router.post('/logout', (req, res) => {
 router.get('/staff', protectedRoute, requirePermission("users:read"), getAllStaff);
 router.post('/staff', protectedRoute, requirePermission("users:create"), createNewStaff);
 router.put('/staff/:id', protectedRoute, requirePermission("users:update"), updateStaff);
+router.patch('/staff/:id/pin', protectedRoute, requirePermission("users:update"), updatePin);
 router.patch('/staff/:id/status', protectedRoute, requirePermission("users:update"), toggleStaffStatus);
 router.delete('/staff/:id', protectedRoute, requirePermission("users:delete"), deleteStaff);
 

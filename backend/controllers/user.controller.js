@@ -183,7 +183,7 @@ const updateStaff = async (req, res) => {
         res.status(200).json({
             success: true,
             message: "Staff updated successfully",
-            user
+            staff: user
         });
     } catch (error) {
         res.status(500).json({
@@ -191,6 +191,47 @@ const updateStaff = async (req, res) => {
             message: "Internal Server Error",
             error: error.message
         });
+    }
+};
+
+/**
+ * PATCH /api/users/staff/:id/pin
+ * Nastavi/posodobi PIN za hitri login (admin only).
+ * Body: { pin: "1234" }
+ */
+const updatePin = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { pin } = req.body;
+
+        if (!pin || !/^\d{4}$/.test(pin)) {
+            return res.status(400).json({
+                success: false,
+                message: "PIN must be exactly 4 digits"
+            });
+        }
+
+        // Preveri unikatnost PIN-a
+        const existing = await User.findOne({ pin, _id: { $ne: id }, isActive: true, role: { $ne: "client" } });
+        if (existing) {
+            return res.status(400).json({
+                success: false,
+                message: `PIN already in use by ${existing.name}`
+            });
+        }
+
+        const user = await User.findByIdAndUpdate(id, { pin }, { new: true }).select('-password');
+        if (!user) {
+            return res.status(404).json({ success: false, message: "Staff not found" });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "PIN updated successfully",
+            staff: user
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
     }
 };
 
@@ -247,4 +288,4 @@ const deleteStaff = async (req, res) => {
 };
 
 
-module.exports = { register, login, pinLogin, getAllStaff, createNewStaff, updateStaff, toggleStaffStatus, deleteStaff };
+module.exports = { register, login, pinLogin, getAllStaff, createNewStaff, updateStaff, updatePin, toggleStaffStatus, deleteStaff };

@@ -6,6 +6,7 @@ import { useAuthStore } from "./store/authStore";
 import LoginScreen from "./screens/LoginScreen";
 import DashboardScreen from "./screens/DashboardScreen";
 import MenuScreen from "./screens/MenuScreen";
+import OrderScreen from "./screens/OrderScreen";
 import KitchenScreen from "./screens/KitchenScreen";
 import { StatusBar } from "expo-status-bar";
 
@@ -33,6 +34,13 @@ function AppTabs() {
                 component={DashboardScreen}
                 options={{
                     tabBarIcon: ({ color, size }) => <Ionicons name="grid" color={color} size={size} />,
+                }}
+            />
+            <Tab.Screen
+                name="New Order"
+                component={OrderScreen}
+                options={{
+                    tabBarIcon: ({ color, size }) => <Ionicons name="add-circle" color={color} size={size} />,
                 }}
             />
             <Tab.Screen
