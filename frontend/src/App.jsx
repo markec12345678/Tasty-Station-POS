@@ -46,9 +46,12 @@ const QRCodeGenerator = lazy(() => import('./pages/Admin/pages/QRCodeGenerator')
 const OutletManagement = lazy(() => import('./pages/Admin/pages/OutletManagement'));
 const FiscalInvoices = lazy(() => import('./pages/Admin/pages/FiscalInvoices'));
 const ModifierManagement = lazy(() => import('./pages/Admin/pages/ModifierManagement'));
+const ZReportPage = lazy(() => import('./pages/Admin/pages/ZReportPage'));
 
 import ChatWidget from './components/chat/ChatWidget';
+import OfflineBanner from './components/OfflineBanner';
 import { Toaster } from 'sonner';
+import { can } from './utils/rbac';
 
 const PageLoader = () => (
   <div className="w-full h-[60vh] flex justify-center items-center">
@@ -105,6 +108,7 @@ const App = () => {
   }
   return (
     <>
+      <OfflineBanner />
       <Routes>
 
         <Route
@@ -125,17 +129,17 @@ const App = () => {
           <Route index element={
             authUser?.role === 'admin' ? <Navigate to="/admin" /> : <Navigate to="dashboard" />
           } />
-          <Route path="dashboard" element={<DashboardHome />} />
-          <Route path="orders" element={<OrderPage />} />
-          <Route path="tables" element={<ManageTables />} />
-          <Route path="waiter" element={<WaiterTerminal />} />
-          <Route path="inventory" element={<Inventory />} />
-          <Route path="dishes" element={<Dishes />} />
-          <Route path="customers" element={<Customer />} />
-          <Route path="kitchen" element={<KitchenDashboard />} />
+          <Route path="dashboard" element={can(authUser?.role, 'dashboard:read') ? <DashboardHome /> : <Navigate to="/" />} />
+          <Route path="orders" element={can(authUser?.role, 'orders:create') ? <OrderPage /> : <Navigate to="/" />} />
+          <Route path="tables" element={can(authUser?.role, 'tables:read') ? <ManageTables /> : <Navigate to="/" />} />
+          <Route path="waiter" element={can(authUser?.role, 'orders:create') ? <WaiterTerminal /> : <Navigate to="/" />} />
+          <Route path="inventory" element={can(authUser?.role, 'inventory:read') ? <Inventory /> : <Navigate to="/" />} />
+          <Route path="dishes" element={can(authUser?.role, 'orders:read') ? <Dishes /> : <Navigate to="/" />} />
+          <Route path="customers" element={can(authUser?.role, 'clients:read') ? <Customer /> : <Navigate to="/" />} />
+          <Route path="kitchen" element={can(authUser?.role, 'kitchen:read') ? <KitchenDashboard /> : <Navigate to="/" />} />
         </Route>
 
-        <Route path='/admin' element={authUser && authUser.role === 'admin' ? <AdminLayout /> : <Navigate to={authUser ? "/" : "/login"} />} >
+        <Route path='/admin' element={authUser && (authUser.role === 'admin' || authUser.role === 'manager') ? <AdminLayout /> : <Navigate to={authUser ? "/" : "/login"} />} >
           <Route index element={
             <Suspense fallback={<PageLoader />}>
               <AdminDashboard />
@@ -229,6 +233,11 @@ const App = () => {
           <Route path="/admin/modifiers" element={
             <Suspense fallback={<PageLoader />}>
               <ModifierManagement />
+            </Suspense>
+          } />
+          <Route path="/admin/z-report" element={
+            <Suspense fallback={<PageLoader />}>
+              <ZReportPage />
             </Suspense>
           } />
         </Route>
