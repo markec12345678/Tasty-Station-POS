@@ -78,7 +78,15 @@ const OrderPage = () => {
     // Davčna stopnja iz baze (prej hardcoded 5%) — fallback na 0% če ni naložen
     const taxRate = getTaxRate();
     const tax = totalAmount * taxRate;
-    const finalTotal = totalAmount + tax;
+
+    // Service charge — 10% za Dine-in z >6 osebami (lahko se toggle-a)
+    const [serviceChargeEnabled, setServiceChargeEnabled] = useState(true);
+    const guestCount = tables.find(t => t._id === selectedTable)?.capacity || 0;
+    const qualifiesForService = orderType === "Dine-in" && guestCount >= 6;
+    const serviceChargeRate = qualifiesForService && serviceChargeEnabled ? 10 : 0;
+    const serviceCharge = (totalAmount * serviceChargeRate) / 100;
+
+    const finalTotal = totalAmount + tax + serviceCharge;
 
     const handlePlaceOrder = async () => {
         if (cart.length === 0) return toast.error("Your cart is empty!");
@@ -94,7 +102,9 @@ const OrderPage = () => {
             })),
             clientName: clientDetails.name,
             clientPhone: clientDetails.phone,
-            tableId: orderType === "Dine-in" ? selectedTable : null
+            tableId: orderType === "Dine-in" ? selectedTable : null,
+            serviceCharge: serviceCharge,
+            serviceChargeRate: serviceChargeRate,
         };
 
         await placeOrder(orderData);
@@ -218,7 +228,7 @@ const OrderPage = () => {
                                                 {/* Price and Controls */}
                                                 <div className="flex items-center justify-between w-full pt-2 px-2">
                                                     <span className="text-xl font-bold text-primary">
-                                                        Rs {item.price.toFixed(2)}
+                                                        € {item.price.toFixed(2)}
                                                     </span>
 
                                                     <div className="flex items-center gap-3">
@@ -285,7 +295,7 @@ const OrderPage = () => {
                                         <div key={item.menuItem._id} className="flex justify-between items-center bg-gray-50 dark:bg-green-800/50 p-3 rounded-lg group animate-in fade-in slide-in-from-right-4 duration-300">
                                             <div className="flex-1">
                                                 <h4 className="font-medium text-sm line-clamp-1">{item.name}</h4>
-                                                <p className="text-xs text-gray-500 dark:text-gray-200">Rs {item.price}</p>
+                                                <p className="text-xs text-gray-500 dark:text-gray-200">€ {item.price}</p>
                                             </div>
                                             <div className="flex items-center gap-3">
                                                 <div className="flex items-center gap-2 bg-white dark:bg-green-900 rounded-md shadow-sm border px-1">
@@ -293,7 +303,7 @@ const OrderPage = () => {
                                                     <span className="text-xs font-semibold w-6 text-center">{item.quantity}</span>
                                                     <button onClick={() => addToCart(item.menuItem)} className="p-1 hover:text-green-500 transition-colors"><Plus className="h-3 w-3" /></button>
                                                 </div>
-                                                <p className="font-semibold text-xs w-16 text-right">Rs {(item.price * item.quantity).toFixed(2)}</p>
+                                                <p className="font-semibold text-xs w-16 text-right">€ {(item.price * item.quantity).toFixed(2)}</p>
                                             </div>
                                         </div>
                                     ))}
@@ -306,15 +316,29 @@ const OrderPage = () => {
                             <div className="space-y-2 text-sm">
                                 <div className="flex justify-between text-gray-500">
                                     <span>Subtotal</span>
-                                    <span>Rs {totalAmount.toFixed(2)}</span>
+                                    <span>€ {totalAmount.toFixed(2)}</span>
                                 </div>
                                 <div className="flex justify-between text-gray-500">
                                     <span>Tax ({activeTax ? activeTax.name : 'Default'} {Math.round(taxRate * 100)}%)</span>
-                                    <span>Rs {tax.toFixed(2)}</span>
+                                    <span>€ {tax.toFixed(2)}</span>
                                 </div>
+                                {qualifiesForService && (
+                                    <div className="flex justify-between items-center text-gray-500">
+                                        <label className="flex items-center gap-1.5 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={serviceChargeEnabled}
+                                                onChange={(e) => setServiceChargeEnabled(e.target.checked)}
+                                                className="size-3"
+                                            />
+                                            <span>Service ({serviceChargeRate}% for {guestCount}+ guests)</span>
+                                        </label>
+                                        <span>€ {serviceCharge.toFixed(2)}</span>
+                                    </div>
+                                )}
                                 <div className="flex justify-between text-lg font-bold text-gray-900 dark:text-white pt-2 border-t">
                                     <span>Total</span>
-                                    <span>Rs {finalTotal.toFixed(2)}</span>
+                                    <span>€ {finalTotal.toFixed(2)}</span>
                                 </div>
                             </div>
                             <Button
@@ -428,7 +452,7 @@ const OrderPage = () => {
                                 ) : (
                                     <>
                                         <span className="text-sm opacity-80 font-normal">Final Total</span>
-                                        <span className="font-bold">Pay Rs {finalTotal.toFixed(2)}</span>
+                                        <span className="font-bold">Pay € {finalTotal.toFixed(2)}</span>
                                     </>
                                 )}
                             </Button>
@@ -498,7 +522,7 @@ const OrderPage = () => {
                                             <span className="w-4 font-bold">{item.quantity}</span>
                                             <span className="uppercase">{item.name}</span>
                                         </div>
-                                        <span className="text-right">Rs {item.price.toFixed(2)}</span>
+                                        <span className="text-right">€ {item.price.toFixed(2)}</span>
                                     </div>
                                 ))}
                             </div>
@@ -507,15 +531,15 @@ const OrderPage = () => {
                             <div className="space-y-1 mb-4 text-xs">
                                 <div className="flex justify-between">
                                     <span>Subtotal</span>
-                                    <span>Rs {lastOrder?.items.reduce((acc, i) => acc + (i.price * i.quantity), 0).toFixed(2)}</span>
+                                    <span>€ {lastOrder?.items.reduce((acc, i) => acc + (i.price * i.quantity), 0).toFixed(2)}</span>
                                 </div>
                                 <div className="flex justify-between">
                                     <span>Tax</span>
-                                    <span>Rs {(lastOrder?.totalAmount - lastOrder?.items.reduce((acc, i) => acc + (i.price * i.quantity), 0)).toFixed(2)}</span>
+                                    <span>€ {(lastOrder?.totalAmount - lastOrder?.items.reduce((acc, i) => acc + (i.price * i.quantity), 0)).toFixed(2)}</span>
                                 </div>
                                 <div className="flex justify-between font-bold border-t border-black pt-1">
                                     <span className="uppercase">{lastOrder?.type === 'Dine-in' ? 'Eat-In Total' : 'Take-Out Total'}</span>
-                                    <span>Rs {lastOrder?.totalAmount.toFixed(2)}</span>
+                                    <span>€ {lastOrder?.totalAmount.toFixed(2)}</span>
                                 </div>
                             </div>
 
@@ -523,7 +547,7 @@ const OrderPage = () => {
                             <div className="space-y-1 mb-6 text-xs border-b border-black pb-4">
                                 <div className="flex justify-between">
                                     <span>{lastOrder?.paymentMethod === 'Cash' ? 'Cash' : 'Cashless'}</span>
-                                    <span>Rs {lastOrder?.totalAmount.toFixed(2)}</span>
+                                    <span>€ {lastOrder?.totalAmount.toFixed(2)}</span>
                                 </div>
                                 <div className="flex justify-between">
                                     <span>Change</span>
@@ -544,7 +568,7 @@ const OrderPage = () => {
                                 </div>
                                 <div className="flex justify-between font-bold text-black border-t border-gray-200 mt-1 pt-1">
                                     <span>TRANSACTION AMOUNT</span>
-                                    <span>Rs {lastOrder?.totalAmount.toFixed(2)}</span>
+                                    <span>€ {lastOrder?.totalAmount.toFixed(2)}</span>
                                 </div>
                                 <p>CONTACTLESS</p>
                                 <p>AUTHORIZATION CODE - {receiptMetadata.authCode}</p>

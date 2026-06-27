@@ -2,11 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { useTableStore } from '@/store/useTableStore';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, Filter, Grid2x2Check, Calendar, Users, Clock, MoreVertical, Edit, Trash2, LayoutGrid, Armchair, XCircle } from 'lucide-react';
+import { Plus, Search, Filter, Grid2x2Check, Calendar, Users, Clock, MoreVertical, Edit, Trash2, LayoutGrid, Armchair, XCircle, Maximize2 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import TableCard from '../../Admin/Components/Tables/TableCard';
 import AddTableModal from '../../Admin/Components/Tables/AddTableModal';
+import FloorPlanEditor from '../components/FloorPlanEditor';
+import TableTimer from '../components/TableTimer';
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -308,10 +310,17 @@ const ManageTables = () => {
                                                         : selectedTable.currentSession?.startTime || "—"}
                                                 </span>
                                             </div>
+                                            <div className="flex justify-between items-center text-sm">
+                                                <span className="text-muted-foreground">Duration</span>
+                                                <TableTimer
+                                                    occupiedAt={selectedTable.currentOrder?.createdAt}
+                                                    compact
+                                                />
+                                            </div>
                                             <div className="flex justify-between items-center text-sm pt-2 border-t">
                                                 <span className="text-muted-foreground">Running Total</span>
                                                 <span className="font-medium text-primary">
-                                                    Rs {(selectedTable.currentOrder?.totalAmount ?? 0).toLocaleString()}
+                                                    €{(selectedTable.currentOrder?.totalAmount ?? 0).toLocaleString()}
                                                 </span>
                                             </div>
                                         </div>

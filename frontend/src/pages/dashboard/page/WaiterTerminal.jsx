@@ -25,6 +25,7 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import TableTimer from '../components/TableTimer';
 
 const WaiterTerminal = () => {
     const { authUser } = useAuthStore();
@@ -320,9 +321,13 @@ const TableMiniCard = ({ table, isMine, onQuickOrder }) => {
                             <span className="font-medium text-foreground">{arrival || "—"}</span>
                         </div>
                         <div className="flex justify-between">
+                            <span>Duration:</span>
+                            <TableTimer occupiedAt={table.currentOrder?.createdAt} compact />
+                        </div>
+                        <div className="flex justify-between">
                             <span>Items / Total:</span>
                             <span className="font-medium text-foreground">
-                                {itemCount} / Rs {orderTotal.toLocaleString()}
+                                {itemCount} / €{orderTotal.toLocaleString()}
                             </span>
                         </div>
                     </div>
