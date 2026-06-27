@@ -45,12 +45,25 @@ const orderSchema = new mongoose.Schema({
             required: true
         },
         name: String, // Snapshot of name at time of order
-        price: Number, // Snapshot of price at time of order
+        price: Number, // Base price (snapshot)
         quantity: {
             type: Number,
             required: true,
             min: 1
-        }
+        },
+        // === Modifier selections ===
+        // Izbrani modifikatorji za ta artikel v tem naročilu
+        // npr. [{ groupName: "Cook Temperature", modifierName: "Medium", priceAdjustment: 0 }]
+        modifiers: [{
+            groupName: { type: String, required: true },
+            modifierName: { type: String, required: true },
+            priceAdjustment: { type: Number, default: 0 },
+            priceOverride: { type: Number, default: null },
+        }],
+        // Končna cena tega artikla z modifikatorji (base price + vsi adjustments)
+        unitPrice: Number,
+        // Skupna cena za to postavko (unitPrice × quantity)
+        lineTotal: Number,
     }],
     totalAmount: {
         type: Number,

@@ -48,43 +48,50 @@ export const useQROrderStore = create((set, get) => ({
     },
 
     // Cart operacije
-    addToCart: (menuItem) => {
+    addToCart: (menuItem, quantity = 1, modifiers = [], unitPrice = null) => {
         const { cart } = get();
-        const existing = cart.find(i => i.menuItemId === menuItem._id);
+        const finalPrice = unitPrice || menuItem.price;
+        // Key vključuje modifierje — isti artikel z drugačnimi modifierji je ločen entry
+        const modKey = modifiers.map(m => m.modifierName).sort().join("|");
+        const cartKey = `${menuItem._id}_${modKey}`;
+        const existing = cart.find(i => i.cartKey === cartKey);
         if (existing) {
             set({
                 cart: cart.map(i =>
-                    i.menuItemId === menuItem._id
-                        ? { ...i, quantity: i.quantity + 1 }
+                    i.cartKey === cartKey
+                        ? { ...i, quantity: i.quantity + quantity }
                         : i
                 )
             });
         } else {
             set({
                 cart: [...cart, {
+                    cartKey,
                     menuItemId: menuItem._id,
                     name: menuItem.name,
-                    price: menuItem.price,
+                    price: finalPrice,
                     image: menuItem.image,
-                    quantity: 1,
+                    quantity,
+                    modifiers,
+                    unitPrice: finalPrice,
                 }]
             });
         }
     },
 
-    removeFromCart: (menuItemId) => {
+    removeFromCart: (cartKey) => {
         const { cart } = get();
-        const existing = cart.find(i => i.menuItemId === menuItemId);
+        const existing = cart.find(i => i.cartKey === cartKey);
         if (existing && existing.quantity > 1) {
             set({
                 cart: cart.map(i =>
-                    i.menuItemId === menuItemId
+                    i.cartKey === cartKey
                         ? { ...i, quantity: i.quantity - 1 }
                         : i
                 )
             });
         } else {
-            set({ cart: cart.filter(i => i.menuItemId !== menuItemId) });
+            set({ cart: cart.filter(i => i.cartKey !== cartKey) });
         }
     },
 
@@ -119,6 +126,7 @@ export const useQROrderStore = create((set, get) => ({
                 items: cart.map(i => ({
                     menuItemId: i.menuItemId,
                     quantity: i.quantity,
+                    modifiers: i.modifiers || [],
                 })),
             });
             set({
@@ -148,7 +156,7 @@ export const useQROrderStore = create((set, get) => ({
     // Getters
     getCartTotal: () => {
         const { cart } = get();
-        return cart.reduce((sum, i) => sum + (i.price * i.quantity), 0);
+        return cart.reduce((sum, i) => sum + ((i.unitPrice || i.price) * i.quantity), 0);
     },
     getCartCount: () => {
         const { cart } = get();

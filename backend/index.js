@@ -29,6 +29,10 @@ const publicRouter = require("./routers/public.router");
 const outletRouter = require("./routers/outlet.router");
 const fiscalRouter = require("./routers/fiscal.router");
 const emailRouter = require("./routers/email.router");
+<<<<<<< HEAD
+=======
+const modifierRouter = require("./routers/modifier.router");
+>>>>>>> c02f0fc (feat: item modifiers system (Toast POS parity) — backend + frontend)
 const errorHandler = require("./middlewares/error.middleware");
 
 const app = express();
@@ -103,6 +107,10 @@ app.use('/api/public', publicRouter);
 app.use('/api/outlets', outletRouter);
 app.use('/api/fiscal', fiscalRouter);
 app.use('/api/email', emailRouter);
+<<<<<<< HEAD
+=======
+app.use('/api/modifiers', modifierRouter);
+>>>>>>> c02f0fc (feat: item modifiers system (Toast POS parity) — backend + frontend)
 app.use('/api', redisTestRouter);
 const chatRouter = require("./routers/chat.router");
 app.use('/api/chat', chatRouter);

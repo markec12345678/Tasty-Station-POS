@@ -11,6 +11,8 @@ import { Input } from "@/components/ui/input";
 import {
     Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription
 } from "@/components/ui/dialog";
+import ModifierDialog from '@/pages/dashboard/components/ModifierDialog';
+import { toast } from 'sonner';
 
 const spiceLevelLabels = { mild: "Mild", medium: "Medium", hot: "Hot", extra_hot: "Extra Hot" };
 const spiceLevelColors = {
@@ -33,6 +35,7 @@ const QROrderPage = () => {
     const [searchQuery, setSearchQuery] = useState("");
     const [checkoutOpen, setCheckoutOpen] = useState(false);
     const [successOpen, setSuccessOpen] = useState(false);
+    const [modifierDialogItem, setModifierDialogItem] = useState(null);
 
     useEffect(() => { if (tableId) loadData(tableId); }, [tableId, loadData]);
     useEffect(() => () => reset(), [reset]);
@@ -213,16 +216,28 @@ const QROrderPage = () => {
                                                 <div className="mt-2 flex justify-end">
                                                     {inCart ? (
                                                         <div className="flex items-center gap-2">
-                                                            <button onClick={() => removeFromCart(item._id)} className="size-7 rounded-full bg-muted flex items-center justify-center hover:bg-muted/70">
+                                                            <button onClick={() => removeFromCart(inCart.cartKey || item._id)} className="size-7 rounded-full bg-muted flex items-center justify-center hover:bg-muted/70">
                                                                 <Minus className="size-3.5" />
                                                             </button>
                                                             <span className="font-bold text-sm w-6 text-center">{inCart.quantity}</span>
-                                                            <button onClick={() => addToCart(item)} className="size-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center hover:bg-primary/90">
+                                                            <button onClick={() => {
+                                                                if (item.modifierGroups?.length > 0) {
+                                                                    setModifierDialogItem(item);
+                                                                } else {
+                                                                    addToCart(item);
+                                                                }
+                                                            }} className="size-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center hover:bg-primary/90">
                                                                 <Plus className="size-3.5" />
                                                             </button>
                                                         </div>
                                                     ) : (
-                                                        <Button size="sm" variant="outline" className="h-7 px-3 text-xs" onClick={() => addToCart(item)}>
+                                                        <Button size="sm" variant="outline" className="h-7 px-3 text-xs" onClick={() => {
+                                                            if (item.modifierGroups?.length > 0) {
+                                                                setModifierDialogItem(item);
+                                                            } else {
+                                                                addToCart(item);
+                                                            }
+                                                        }}>
                                                             <Plus className="size-3 mr-1" /> Dodaj
                                                         </Button>
                                                     )}
@@ -257,16 +272,27 @@ const QROrderPage = () => {
                     <div className="space-y-4">
                         <div className="space-y-2 max-h-48 overflow-y-auto">
                             {cart.map(item => (
-                                <div key={item.menuItemId} className="flex items-center justify-between text-sm">
-                                    <div className="flex items-center gap-2">
-                                        <div className="size-8 rounded bg-muted flex items-center justify-center">
+                                <div key={item.cartKey || item.menuItemId} className="flex items-center justify-between text-sm">
+                                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                                        <div className="size-8 rounded bg-muted flex items-center justify-center shrink-0">
                                             <span className="font-bold text-xs">{item.quantity}×</span>
                                         </div>
-                                        <span>{item.name}</span>
+                                        <div className="min-w-0">
+                                            <div className="truncate">{item.name}</div>
+                                            {item.modifiers && item.modifiers.length > 0 && (
+                                                <div className="flex flex-wrap gap-1 mt-0.5">
+                                                    {item.modifiers.map((mod, mi) => (
+                                                        <span key={mi} className="text-[9px] px-1 py-0.5 rounded bg-primary/10 text-primary">
+                                                            {mod.modifierName}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-muted-foreground">€{(item.price * item.quantity).toFixed(2)}</span>
-                                        <button onClick={() => removeFromCart(item.menuItemId)} className="text-red-500 hover:text-red-600">
+                                    <div className="flex items-center gap-2 shrink-0">
+                                        <span className="text-muted-foreground">€{((item.unitPrice || item.price) * item.quantity).toFixed(2)}</span>
+                                        <button onClick={() => removeFromCart(item.cartKey || item.menuItemId)} className="text-red-500 hover:text-red-600">
                                             <X className="size-3.5" />
                                         </button>
                                     </div>
@@ -341,6 +367,17 @@ const QROrderPage = () => {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* Modifier Selection Dialog */}
+            <ModifierDialog
+                open={!!modifierDialogItem}
+                onOpenChange={(open) => !open && setModifierDialogItem(null)}
+                menuItem={modifierDialogItem}
+                onAddToCart={(item, qty, mods, price) => {
+                    addToCart(item, qty, mods, price);
+                    toast.success(`${item.name} dodan v košarico`);
+                }}
+            />
         </div>
     );
 };

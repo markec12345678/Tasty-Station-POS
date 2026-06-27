@@ -20,7 +20,8 @@ router.get("/menu", async (req, res) => {
             Category.find({ status: "active" }).sort("name").lean(),
             MenuItem.find({ isAvailable: true })
                 .populate("category", "name")
-                .select("name description price image isVeg spiceLevel preparationTime category variants")
+                .populate("modifierGroups", "name description required selectionType maxSelections modifiers.name modifiers.priceAdjustment modifiers.priceOverride modifiers.isDefault modifiers.isAvailable modifiers.sortOrder sortOrder isActive")
+                .select("name description price image isVeg spiceLevel preparationTime category variants modifierGroups")
                 .lean(),
         ]);
 
@@ -116,15 +117,17 @@ router.post("/order", async (req, res) => {
             return res.status(404).json({ success: false, message: "Table not found" });
         }
 
-        // Pridobi artikle iz baze (z pravimi cenami)
+        // Pridobi artikle iz baze (z pravimi cenami in modifier groups)
         const menuItemIds = items.map(i => i.menuItemId);
-        const menuItems = await MenuItem.find({ _id: { $in: menuItemIds } }).session(session);
+        const menuItems = await MenuItem.find({ _id: { $in: menuItemIds } })
+            .populate("modifierGroups")
+            .session(session);
 
         if (menuItems.length !== menuItemIds.length) {
             return res.status(400).json({ success: false, message: "Some menu items not found" });
         }
 
-        // Zgradi order items
+        // Zgradi order items z modifierji in pravilnimi cenami
         let totalAmount = 0;
         const orderItems = items.map(item => {
             const menuItem = menuItems.find(mi => mi._id.toString() === item.menuItemId);
@@ -134,14 +137,51 @@ router.post("/order", async (req, res) => {
             const qty = parseInt(item.quantity);
             if (qty < 1 || qty > 99) throw new Error(`Invalid quantity for ${menuItem.name}`);
 
-            const itemTotal = menuItem.price * qty;
-            totalAmount += itemTotal;
+            // Obdelaj modifikatorje in izračunaj ceno
+            let unitPrice = menuItem.price;
+            const selectedModifiers = [];
+
+            if (item.modifiers && Array.isArray(item.modifiers)) {
+                for (const sel of item.modifiers) {
+                    // Poišči modifier v menuItem.modifierGroups
+                    let found = false;
+                    for (const group of menuItem.modifierGroups || []) {
+                        const modifier = group.modifiers.find(m =>
+                            m.name === sel.modifierName && m.isAvailable !== false
+                        );
+                        if (modifier) {
+                            if (modifier.priceOverride !== null && modifier.priceOverride !== undefined) {
+                                unitPrice = modifier.priceOverride;
+                            } else {
+                                unitPrice += modifier.priceAdjustment || 0;
+                            }
+                            selectedModifiers.push({
+                                groupName: group.name,
+                                modifierName: modifier.name,
+                                priceAdjustment: modifier.priceAdjustment || 0,
+                                priceOverride: modifier.priceOverride,
+                            });
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (!found) {
+                        console.warn(`Modifier "${sel.modifierName}" not found for ${menuItem.name}, skipping`);
+                    }
+                }
+            }
+
+            const lineTotal = unitPrice * qty;
+            totalAmount += lineTotal;
 
             return {
                 menuItem: menuItem._id,
                 name: menuItem.name,
                 price: menuItem.price,
                 quantity: qty,
+                modifiers: selectedModifiers,
+                unitPrice,
+                lineTotal,
             };
         });
 

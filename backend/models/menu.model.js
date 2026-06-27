@@ -75,7 +75,12 @@ const menuItemSchema = new mongoose.Schema({
     taxes: {
         type: Number, // Percentage value, e.g., 5 for 5%
         default: 0
-    }
+    },
+    // === Modifier Groups ===
+    modifierGroups: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "ModifierGroup",
+    }]
 }, { timestamps: true });
 
 const Category = mongoose.models.Category || mongoose.model("Category", categorySchema);

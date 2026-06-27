@@ -74,11 +74,21 @@ const KitchenOrderCard = ({ order, onUpdate, nextStatus, actionLabel }) => {
                                 {item.quantity}
                             </div>
 
-                            {/* Item name + note */}
+                            {/* Item name + modifiers + note */}
                             <div className="flex flex-col gap-0.5 flex-1 min-w-0 px-2.5">
                                 <span className="text-[12px] font-semibold text-foreground capitalize leading-tight">
                                     {name}
                                 </span>
+                                {/* Modifiers */}
+                                {item.modifiers && item.modifiers.length > 0 && (
+                                    <div className="flex flex-wrap gap-1 mt-0.5">
+                                        {item.modifiers.map((mod, mi) => (
+                                            <span key={mi} className="text-[9px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
+                                                {mod.modifierName}
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
                                 {note && (
                                     <span className="text-[10px] text-muted-foreground/60 font-medium leading-none truncate">
                                         {note}
