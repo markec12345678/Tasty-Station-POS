@@ -70,6 +70,23 @@ const orderSchema = new mongoose.Schema({
         required: true,
         min: 0
     },
+    // === Service Charge (avto-dodajanje servisa) ===
+    // Samodejno se doda za večje skupine (npr. 10% za >6 oseb)
+    serviceCharge: {
+        type: Number,
+        default: 0,
+        min: 0,
+    },
+    serviceChargeRate: {
+        type: Number, // procent (npr. 10 = 10%)
+        default: 0,
+    },
+    // Končni znesek = subtotal + tax + serviceCharge - discount
+    finalTotal: {
+        type: Number,
+        default: function() { return this.totalAmount; },
+        min: 0,
+    },
     client: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Client",
