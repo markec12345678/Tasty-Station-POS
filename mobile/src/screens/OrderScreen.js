@@ -4,6 +4,7 @@ import {
     StyleSheet, RefreshControl, Modal, TextInput, Alert
 } from "react-native";
 import { getMenu, getTables, createOrder } from "../api/client";
+import { enqueueOrder, isOnline, startAutoFlush } from "../api/offlineQueue";
 import { Ionicons } from "@expo/vector-icons";
 
 const C = {
@@ -67,27 +68,55 @@ export default function OrderScreen() {
             return;
         }
 
+        const orderData = {
+            type: selectedTable ? "Dine-in" : "Takeaway",
+            paymentMethod: "Cash",
+            items: cart.map(item => ({
+                menuItem: item._id,
+                quantity: item.qty,
+            })),
+            clientName: customerName,
+            clientPhone: "",
+            tableId: selectedTable?._id || null,
+        };
+
         setSubmitting(true);
+
+        // Check if online
+        const online = await isOnline();
+
+        if (!online) {
+            // Offline — enqueue to SQLite
+            await enqueueOrder(orderData);
+            Alert.alert("📱 Offline", "Naročilo shranjeno lokalno. Poslano bo ko internet vrne.");
+            setCart([]);
+            setCustomerName("");
+            setSelectedTable(null);
+            setShowCart(false);
+            setSubmitting(false);
+            return;
+        }
+
         try {
-            await createOrder({
-                type: selectedTable ? "Dine-in" : "Takeaway",
-                paymentMethod: "Cash",
-                items: cart.map(item => ({
-                    menuItem: item._id,
-                    quantity: item.qty,
-                })),
-                clientName: customerName,
-                clientPhone: "",
-                tableId: selectedTable?._id || null,
-            });
+            await createOrder(orderData);
             Alert.alert("✅ Uspeh", "Naročilo oddano!");
             setCart([]);
             setCustomerName("");
             setSelectedTable(null);
             setShowCart(false);
         } catch (e) {
-            const msg = e.response?.data?.message || "Napaka pri oddaji";
-            Alert.alert("❌ Napaka", msg);
+            // Network error — try offline queue
+            if (e.code === "ERR_NETWORK" || !e.response) {
+                await enqueueOrder(orderData);
+                Alert.alert("📱 Offline", "Brez povezave — naročilo shranjeno lokalno.");
+                setCart([]);
+                setCustomerName("");
+                setSelectedTable(null);
+                setShowCart(false);
+            } else {
+                const msg = e.response?.data?.message || "Napaka pri oddaji";
+                Alert.alert("❌ Napaka", msg);
+            }
         } finally {
             setSubmitting(false);
         }

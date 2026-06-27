@@ -3,6 +3,7 @@ import { NavigationContainer } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuthStore } from "./store/authStore";
+import { startAutoFlush } from "./api/offlineQueue";
 import LoginScreen from "./screens/LoginScreen";
 import DashboardScreen from "./screens/DashboardScreen";
 import MenuScreen from "./screens/MenuScreen";
@@ -67,6 +68,15 @@ export default function App() {
     useEffect(() => {
         init();
     }, [init]);
+
+    // Start offline auto-flush when authenticated
+    useEffect(() => {
+        if (!isAuthenticated) return;
+        const stopFlush = startAutoFlush((result) => {
+            console.log(`[AutoFlush] Synced ${result.flushed} orders`);
+        });
+        return stopFlush;
+    }, [isAuthenticated]);
 
     return (
         <>

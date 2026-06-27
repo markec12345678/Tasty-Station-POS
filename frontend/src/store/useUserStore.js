@@ -69,6 +69,20 @@ const useUserStore = create((set) => ({
         } catch {
             toast.error("Failed to delete staff");
         }
+    },
+
+    updatePin: async (id, pin) => {
+        try {
+            const response = await axiosInstance.patch(`/users/staff/${id}/pin`, { pin });
+            set((state) => ({
+                staff: state.staff.map((s) => (s._id === id ? { ...s, pin } : s))
+            }));
+            toast.success("PIN updated successfully");
+            return true;
+        } catch (error) {
+            toast.error(error.response?.data?.message || "Failed to update PIN");
+            return false;
+        }
     }
 }));
 

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import {
     Plus, Search, UserCog, ShieldCheck, Clock, Mail, Phone,
-    MoreHorizontal, Edit, Trash2, ShieldAlert, CheckCircle2, XCircle
+    MoreHorizontal, Edit, Trash2, ShieldAlert, CheckCircle2, XCircle, Fingerprint
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,10 +24,11 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import useUserStore from "@/store/useUserStore";
 
 const StaffManagement = () => {
-    const { staff, isLoading, fetchStaff, createNewStaff, updateStaff, toggleStaffStatus, deleteStaff } = useUserStore();
+    const { staff, isLoading, fetchStaff, createNewStaff, updateStaff, toggleStaffStatus, deleteStaff, updatePin } = useUserStore();
     const [searchTerm, setSearchTerm] = useState("");
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [editingStaff, setEditingStaff] = useState(null);
+    const [pinModal, setPinModal] = useState({ open: false, staff: null, pin: "" });
 
     // Form State
     const [formData, setFormData] = useState({
@@ -147,6 +148,7 @@ const StaffManagement = () => {
                             <TableRow>
                                 <TableHead>Staff Member</TableHead>
                                 <TableHead>Role</TableHead>
+                                <TableHead>PIN</TableHead>
                                 <TableHead>Shift</TableHead>
                                 <TableHead>Status</TableHead>
                                 <TableHead className="text-right">Actions</TableHead>
@@ -169,6 +171,15 @@ const StaffManagement = () => {
                                     <TableCell>
                                         <Badge variant="outline" className="capitalize">{person.role}</Badge>
                                         <p className="text-[10px] text-muted-foreground mt-1">{person.designation || "No designation"}</p>
+                                    </TableCell>
+                                    <TableCell>
+                                        <button
+                                            onClick={() => setPinModal({ open: true, staff: person, pin: person.pin || "" })}
+                                            className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md border hover:bg-accent transition-colors"
+                                        >
+                                            <Fingerprint className="size-3 text-muted-foreground" />
+                                            <span className="font-mono text-sm font-bold">{person.pin ? `••••` : "Set PIN"}</span>
+                                        </button>
                                     </TableCell>
                                     <TableCell>
                                         <div className="flex items-center gap-1 text-sm">
@@ -194,6 +205,9 @@ const StaffManagement = () => {
                                                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
                                                 <DropdownMenuItem onClick={() => setEditingStaff(person)}>
                                                     <Edit className="size-4 mr-2" /> Edit Details
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => setPinModal({ open: true, staff: person, pin: person.pin || "" })}>
+                                                    <Fingerprint className="size-4 mr-2" /> {person.pin ? "Change PIN" : "Set PIN"}
                                                 </DropdownMenuItem>
                                                 <DropdownMenuItem onClick={() => toggleStaffStatus(person._id)}>
                                                     {person.isActive ? <XCircle className="size-4 mr-2" /> : <CheckCircle2 className="size-4 mr-2" />}
@@ -301,6 +315,96 @@ const StaffManagement = () => {
                         <Button variant="outline" onClick={handleCloseModal}>Cancel</Button>
                         <Button type="submit" form="staff-form" className="bg-teal-700 hover:bg-teal-800" disabled={isLoading}>
                             {editingStaff ? "Save Changes" : "Create Staff Account"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* PIN Management Dialog */}
+            <Dialog open={pinModal.open} onOpenChange={(open) => !open && setPinModal({ open: false, staff: null, pin: "" })}>
+                <DialogContent className="sm:max-w-xs">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Fingerprint className="size-5 text-primary" />
+                            {pinModal.staff?.pin ? "Change PIN" : "Set PIN"}
+                        </DialogTitle>
+                        <DialogDescription>
+                            {pinModal.staff?.name} — 4-digit quick login PIN
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-2">
+                        <div className="flex justify-center">
+                            <Input
+                                type="text"
+                                inputMode="numeric"
+                                pattern="\d*"
+                                maxLength={4}
+                                value={pinModal.pin}
+                                onChange={(e) => {
+                                    const val = e.target.value.replace(/\D/g, "").slice(0, 4);
+                                    setPinModal(prev => ({ ...prev, pin: val }));
+                                }}
+                                className="text-center text-3xl font-mono font-bold tracking-[0.5em] h-16 w-40"
+                                placeholder="••••"
+                                autoFocus
+                            />
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                            {["1","2","3","4","5","6","7","8","9"].map(d => (
+                                <Button
+                                    key={d}
+                                    variant="outline"
+                                    className="h-12 text-lg font-bold"
+                                    onClick={() => {
+                                        if (pinModal.pin.length < 4) {
+                                            setPinModal(prev => ({ ...prev, pin: prev.pin + d }));
+                                        }
+                                    }}
+                                    disabled={pinModal.pin.length >= 4}
+                                >
+                                    {d}
+                                </Button>
+                            ))}
+                            <Button
+                                variant="outline"
+                                className="h-12"
+                                onClick={() => setPinModal(prev => ({ ...prev, pin: prev.pin.slice(0, -1) }))}
+                            >
+                                ⌫
+                            </Button>
+                            <Button
+                                variant="outline"
+                                className="h-12 text-lg font-bold"
+                                onClick={() => {
+                                    if (pinModal.pin.length < 4) {
+                                        setPinModal(prev => ({ ...prev, pin: prev.pin + "0" }));
+                                    }
+                                }}
+                                disabled={pinModal.pin.length >= 4}
+                            >
+                                0
+                            </Button>
+                            <div />
+                        </div>
+                        {pinModal.pin.length === 4 && (
+                            <p className="text-center text-xs text-emerald-600 font-medium">
+                                ✓ PIN ready: {pinModal.pin}
+                            </p>
+                        )}
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setPinModal({ open: false, staff: null, pin: "" })}>
+                            Cancel
+                        </Button>
+                        <Button
+                            disabled={pinModal.pin.length !== 4}
+                            onClick={async () => {
+                                const ok = await updatePin(pinModal.staff._id, pinModal.pin);
+                                if (ok) setPinModal({ open: false, staff: null, pin: "" });
+                            }}
+                        >
+                            <Fingerprint className="size-4 mr-2" />
+                            Save PIN
                         </Button>
                     </DialogFooter>
                 </DialogContent>
