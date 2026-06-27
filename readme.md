@@ -222,6 +222,43 @@
 - **Socket.io:** `courseSent` event emitted for real-time KDS updates.
 - **Per-Item Tracking:** `sentToKitchen` flag on each item prevents duplicate sends.
 
+### 🔐 RBAC Permission System (NEW — Production Security)
+- **60+ Permission Keys:** Granular per-endpoint access control across 20 categories.
+- **6 Roles:** admin (full), manager, cashier, waiter, kitchen, client.
+- **Backend Middleware:** `requirePermission("orders:payment")` on all 10 routers.
+- **Frontend Route Guards:** `can(role, permission)` on all React routes.
+- **Sidebar Filtering:** Menu items filtered by role — manager doesn't see backup/audit/outlets.
+- **Waiter Security:** Cannot access payments, backup, audit, outlets, fiscal, email config.
+
+### 🔢 PIN Quick Login (NEW)
+- **4-Digit PIN:** Fast login for POS terminals — no email/password needed.
+- **PIN Pad Component:** Full-screen number pad with auto-submit, keyboard support.
+- **PIN Management:** Admin can set/change PIN for each staff member via dedicated dialog.
+- **Uniqueness Check:** Backend validates no two staff share the same PIN.
+- **Demo PINs:** 1234 (admin), 5566 (manager), 1111 (cashier), 3333 (waiter), 8888 (kitchen).
+
+### 📡 Offline Resilience (NEW — Production Stability)
+- **Web (IndexedDB):** Failed orders queued in browser, auto-sync when online.
+- **Mobile (SQLite):** expo-sqlite queue for React Native with auto-flush every 30s.
+- **OfflineBanner:** Red/amber/blue banner showing connection status + pending count.
+- **Server Health Check:** Pings backend every 30s — detects server down even if browser says online.
+- **Conflict Resolution:** 409 → marks as conflicted, not retried. Max 5 attempts then failed.
+
+### 📊 Z-Report / X-Report (NEW — Legal Compliance)
+- **Z-Report:** Daily cash drawer reconciliation with DDV breakdown, payment methods, fiscal summary.
+- **X-Report:** Mid-day snapshot with hourly revenue chart.
+- **CSV Export:** Export Z-Report orders to CSV.
+- **Print:** Browser print for physical Z-Report.
+- **Cash Drawer:** Opening float + cash sales = expected (manual count entry).
+
+### 📱 React Native Mobile App (NEW)
+- **5 Screens:** Dashboard, New Order, Menu, Kitchen, Login.
+- **Order Creation:** Full cart workflow with table selection and customer details.
+- **Kitchen Display:** Real-time KDS with status updates and modifier display.
+- **Offline Queue:** SQLite-based order queue with auto-flush.
+- **Secure Storage:** JWT token in expo-secure-store.
+- **EAS Build:** Config for APK (preview) and AAB (production) builds.
+
 ---
 
 ## 🌍 Internationalization (i18n)
@@ -457,7 +494,7 @@ VITE_API_BASE_URL=http://localhost:3000
 - [x] ~~**AI Inventory Forecasting**: Predicting stock depletion using Gemini AI.~~ ✅ Done
 - [x] ~~**Multi-Outlet Sync**: Centralized dashboard for restaurant chains.~~ ✅ Done
 - [x] ~~**QR Code Ordering**: Customer-facing self-service interface.~~ ✅ Done
-- [x] ~~**Slovenian Fiskalni Sistem**: FURS integration (ZOI, EOR, QR).~~ ✅ Done (architecture ready — requires FURS cert)
+- [x] ~~**Slovenian Fiskalni Sistem**: FURS integration (ZOI, EOR, QR).~~ ✅ Done
 - [x] ~~**Email Notifications**: Order ready, loyalty tier upgrade, low stock, daily report.~~ ✅ Done
 - [x] ~~**Customer Order Tracking**: Public tracking page with auto-refresh.~~ ✅ Done
 - [x] ~~**Live Dashboard**: Real-time WebSocket activity feed on Admin Dashboard.~~ ✅ Done
@@ -465,9 +502,14 @@ VITE_API_BASE_URL=http://localhost:3000
 - [x] ~~**Table Timers**: Real-time seating duration with color coding.~~ ✅ Done
 - [x] ~~**Service Charges**: Auto-charge for large parties.~~ ✅ Done
 - [x] ~~**Course Routing**: Multi-course order routing to kitchen.~~ ✅ Done
-- [ ] **Mobile App (React Native)**: Native POS for handheld device speed.
+- [x] ~~**RBAC Permission System**: 60+ permissions, 6 roles, frontend guards.~~ ✅ Done
+- [x] ~~**PIN Quick Login**: 4-digit PIN for POS terminals.~~ ✅ Done
+- [x] ~~**Offline Resilience**: IndexedDB + SQLite queues with auto-sync.~~ ✅ Done
+- [x] ~~**Z-Report / X-Report**: Daily reconciliation, DDV, cash drawer, CSV.~~ ✅ Done
+- [x] ~~**React Native Mobile App**: 5 screens with order creation + offline.~~ ✅ Done
 - [ ] **Multi-currency Exchange Rates**: Live EUR/USD/Rs conversion.
 - [ ] **Push Notifications**: Browser + mobile push for new orders.
+- [ ] **FURS SOAP Production**: Real SOAP call with FURS certificate.
 
 ---
 
