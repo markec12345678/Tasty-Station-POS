@@ -1,7 +1,8 @@
 const express = require("express");
 const router = express.Router();
 const FiscalInvoice = require("../models/fiscalInvoice.model");
-const { protectedRoute, isAdmin } = require("../middlewares/auth.middleware");
+const { protectedRoute } = require("../middlewares/auth.middleware");
+const { requirePermission } = require("../middlewares/rbac.middleware");
 const { confirmInvoice } = require("../utils/furs");
 
 // Vsi endpointi zahtevajo avtentikacijo
@@ -136,7 +137,7 @@ router.get("/:id", async (req, res) => {
 /**
  * POST /api/fiscal/:id/retry — ponovno pošlji failed račun FURS
  */
-router.post("/:id/retry", isAdmin, async (req, res) => {
+router.post("/:id/retry", requirePermission("fiscal:retry"), async (req, res) => {
     try {
         const invoice = await FiscalInvoice.findById(req.params.id).populate("order").populate("outlet");
         if (!invoice) return res.status(404).json({ success: false, message: "Invoice not found" });

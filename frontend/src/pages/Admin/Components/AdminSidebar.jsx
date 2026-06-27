@@ -33,6 +33,7 @@ import {
 import { Link, useLocation } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/store/useAuthStore'
+import { can } from '@/utils/rbac'
 
 const AdminSidebar = () => {
 
@@ -43,26 +44,26 @@ const AdminSidebar = () => {
     const [collapsed, setCollapsed] = useState(false)
 
     const menuItems = [
-        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, badge: 0, link: '/admin' },
-        { id: 'reports-dashboard', label: 'Reports Dashboard', icon: BarChart3, badge: 0, link: '/admin/reports-dashboard' },
-        { id: 'z-report', label: 'Z-Report / X-Report', icon: FileText, badge: 0, link: '/admin/z-report' },
-        { id: 'menu', label: 'Menu', icon: ShoppingCart, badge: 3, link: '/admin/menu' },
-        { id: 'modifiers', label: 'Modifiers', icon: SlidersHorizontal, badge: 0, link: '/admin/modifiers' },
-        { id: 'tables', label: 'Manage Tables', icon: Grid2x2Check, badge: 0, link: '/admin/tables' },
-        { id: 'qr-codes', label: 'QR Codes', icon: QrCode, badge: 0, link: '/admin/qr-codes' },
-        { id: 'inventory', label: 'Inventory', icon: Package, badge: 5, link: '/admin/inventory' },
-        { id: 'forecast', label: 'AI Forecast', icon: Brain, badge: 0, link: '/admin/forecast' },
-        { id: 'staff', label: 'Staff Management', icon: ChefHat, badge: 0, link: '/admin/staff' },
-        { id: 'customer-history', label: 'Customer History', icon: Users, badge: 0, link: '/admin/customer-history' },
-        { id: 'loyalty', label: 'Loyalty Program', icon: Award, badge: 0, link: '/admin/loyalty' },
-        { id: 'reports', label: 'Reports (Legacy)', icon: TrendingUp, badge: 0, link: '/admin/reports' },
-        { id: 'currency', label: 'Currency Settings', icon: Coins, badge: 0, link: '/admin/currency' },
-        { id: 'backup', label: 'Backup & Restore', icon: Database, badge: 0, link: '/admin/backup' },
-        { id: 'audit', label: 'Audit Log', icon: Shield, badge: 0, link: '/admin/audit' },
-        { id: 'outlets', label: 'Outlets', icon: Building2, badge: 0, link: '/admin/outlets' },
-        { id: 'fiscal', label: 'Fiscal Invoices', icon: Receipt, badge: 0, link: '/admin/fiscal' },
-        { id: 'pos-terminal', label: 'POS Terminal', icon: BringToFront, badge: 0, link: '/orders' },
-    ]
+        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, badge: 0, link: '/admin', permission: 'dashboard:read' },
+        { id: 'reports-dashboard', label: 'Reports Dashboard', icon: BarChart3, badge: 0, link: '/admin/reports-dashboard', permission: 'reports:read' },
+        { id: 'z-report', label: 'Z-Report / X-Report', icon: FileText, badge: 0, link: '/admin/z-report', permission: 'reports:read' },
+        { id: 'menu', label: 'Menu', icon: ShoppingCart, badge: 3, link: '/admin/menu', permission: 'menu:read' },
+        { id: 'modifiers', label: 'Modifiers', icon: SlidersHorizontal, badge: 0, link: '/admin/modifiers', permission: 'modifiers:read' },
+        { id: 'tables', label: 'Manage Tables', icon: Grid2x2Check, badge: 0, link: '/admin/tables', permission: 'tables:read' },
+        { id: 'qr-codes', label: 'QR Codes', icon: QrCode, badge: 0, link: '/admin/qr-codes', permission: 'tables:read' },
+        { id: 'inventory', label: 'Inventory', icon: Package, badge: 5, link: '/admin/inventory', permission: 'inventory:read' },
+        { id: 'forecast', label: 'AI Forecast', icon: Brain, badge: 0, link: '/admin/forecast', permission: 'inventory:read' },
+        { id: 'staff', label: 'Staff Management', icon: ChefHat, badge: 0, link: '/admin/staff', permission: 'users:read' },
+        { id: 'customer-history', label: 'Customer History', icon: Users, badge: 0, link: '/admin/customer-history', permission: 'clients:read' },
+        { id: 'loyalty', label: 'Loyalty Program', icon: Award, badge: 0, link: '/admin/loyalty', permission: 'loyalty:read' },
+        { id: 'reports', label: 'Reports (Legacy)', icon: TrendingUp, badge: 0, link: '/admin/reports', permission: 'reports:read' },
+        { id: 'currency', label: 'Currency Settings', icon: Coins, badge: 0, link: '/admin/currency', permission: 'currency:read' },
+        { id: 'backup', label: 'Backup & Restore', icon: Database, badge: 0, link: '/admin/backup', permission: 'backup:download' },
+        { id: 'audit', label: 'Audit Log', icon: Shield, badge: 0, link: '/admin/audit', permission: 'audit:read' },
+        { id: 'outlets', label: 'Outlets', icon: Building2, badge: 0, link: '/admin/outlets', permission: 'outlets:read' },
+        { id: 'fiscal', label: 'Fiscal Invoices', icon: Receipt, badge: 0, link: '/admin/fiscal', permission: 'fiscal:read' },
+        { id: 'pos-terminal', label: 'POS Terminal', icon: BringToFront, badge: 0, link: '/orders', permission: 'orders:create' },
+    ].filter(item => !item.permission || can(authUser?.role, item.permission))
 
     const bottomItems = [
         { id: 'settings', label: 'Settings', icon: Settings, link: '/settings' },

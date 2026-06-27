@@ -1,10 +1,11 @@
 const express = require("express");
 const router = express.Router();
 const AuditLog = require("../models/auditLog.model");
-const { protectedRoute, isAdmin } = require("../middlewares/auth.middleware");
+const { protectedRoute } = require("../middlewares/auth.middleware");
+const { requirePermission } = require("../middlewares/rbac.middleware");
 
 // Vsi endpointi so zaščiteni z Admin
-router.use(protectedRoute, isAdmin);
+router.use(protectedRoute, requirePermission("audit:read"));
 
 /**
  * GET /api/audit

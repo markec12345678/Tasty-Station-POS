@@ -1,7 +1,8 @@
 const express = require("express");
 const router = express.Router();
 const mongoose = require("mongoose");
-const { protectedRoute, isAdmin } = require("../middlewares/auth.middleware");
+const { protectedRoute } = require("../middlewares/auth.middleware");
+const { requirePermission } = require("../middlewares/rbac.middleware");
 const archiver = require("archiver");
 const multer = require("multer");
 const AdmZip = require("adm-zip");
@@ -17,7 +18,7 @@ const Reward = require("../models/reward.model");
 const Order = require("../models/order.model");
 
 // GET /api/backup — stream ZIP z JSON dump-om vseh kolekcij (admin only)
-router.get("/", protectedRoute, isAdmin, async (req, res) => {
+router.get("/", protectedRoute, requirePermission("backup:stats"), async (req, res) => {
     try {
         const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
         const filename = `tasty-station-backup-${timestamp}.zip`;
@@ -71,7 +72,7 @@ router.get("/", protectedRoute, isAdmin, async (req, res) => {
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 } });
 
 // POST /api/backup/restore — admin only
-router.post("/restore", protectedRoute, isAdmin, upload.single("backup"), async (req, res) => {
+router.post("/restore", protectedRoute, requirePermission("backup:download"), upload.single("backup"), async (req, res) => {
     const session = await mongoose.startSession();
     session.startTransaction();
     try {
@@ -139,7 +140,7 @@ router.post("/restore", protectedRoute, isAdmin, upload.single("backup"), async 
 });
 
 // GET /api/backup/stats — admin only
-router.get("/stats", protectedRoute, isAdmin, async (req, res) => {
+router.get("/stats", protectedRoute, requirePermission("backup:stats"), async (req, res) => {
     try {
         const counts = {
             users: await User.countDocuments(),

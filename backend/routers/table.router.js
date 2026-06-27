@@ -1,16 +1,16 @@
 const express = require("express");
 const router = express.Router();
 const { createTable, getTables, updateTable, deleteTable, reserveTable, cancelReservation } = require("../controllers/table.controller");
-const { protectedRoute, isAdmin } = require("../middlewares/auth.middleware");
+const { protectedRoute } = require("../middlewares/auth.middleware");
+const { requirePermission } = require("../middlewares/rbac.middleware");
 
-// All routes protected by Auth and Admin (for now)
 router.use(protectedRoute);
 
-router.get("/", getTables); // Waiters might need this later, but protected for now
-router.post("/", isAdmin, createTable);
-router.put("/:id", isAdmin, updateTable);
-router.delete("/:id", isAdmin, deleteTable);
-router.post("/:id/reserve", isAdmin, reserveTable);
-router.post("/:id/cancel-reservation", isAdmin, cancelReservation);
+router.get("/", requirePermission("tables:read"), getTables);
+router.post("/", requirePermission("tables:create"), createTable);
+router.put("/:id", requirePermission("tables:update"), updateTable);
+router.delete("/:id", requirePermission("tables:delete"), deleteTable);
+router.post("/:id/reserve", requirePermission("tables:reserve"), reserveTable);
+router.post("/:id/cancel-reservation", requirePermission("tables:reserve"), cancelReservation);
 
 module.exports = router;
