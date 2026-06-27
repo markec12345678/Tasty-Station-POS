@@ -2,6 +2,7 @@ const { register, login, pinLogin, getAllStaff, createNewStaff, updateStaff, upd
 const { body } = require('express-validator');
 const { protectedRoute, isAdmin } = require('../middlewares/auth.middleware');
 const { requirePermission } = require('../middlewares/rbac.middleware');
+const User = require('../models/user.model');
 const router = require('express').Router();
 
 // Public auth routes
@@ -26,6 +27,20 @@ router.post('/pin-login', pinLogin);
 
 router.get('/me', protectedRoute, (req, res) => {
     res.json(req.user);
+});
+
+// Push notification token registration
+router.post('/push-token', protectedRoute, async (req, res) => {
+    try {
+        const { pushToken } = req.body;
+        if (!pushToken || !pushToken.startsWith("ExponentPushToken")) {
+            return res.status(400).json({ success: false, message: "Invalid push token" });
+        }
+        await User.findByIdAndUpdate(req.user._id, { pushToken });
+        res.status(200).json({ success: true, message: "Push token registered" });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
 });
 
 router.post('/logout', (req, res) => {

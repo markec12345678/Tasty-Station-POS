@@ -4,6 +4,7 @@ const { MenuItem } = require("../models/menu.model");
 const Client = require("../models/client.model");
 const ApiError = require("../utils/ApiError");
 const { getIo } = require("../config/socket.config");
+const { notifyNewOrderPush, notifyOrderReadyPush, notifyQROrderPush } = require("../utils/pushService");
 
 // ... (createOrder logic up to generating unique ID)
 // Create a new order
@@ -112,6 +113,9 @@ const createOrder = async (req, res, next) => {
         } catch (socketError) {
             console.error("Socket.io error on newOrder:", socketError);
         }
+
+        // Send push notification to kitchen/cashier
+        notifyNewOrderPush(populatedOrder).catch(e => console.error("Push error:", e.message));
 
         res.status(201).json({
             success: true,
@@ -269,6 +273,11 @@ const updateOrderStatus = async (req, res, next) => {
             io.emit("orderStatusUpdate", order);
         } catch (socketError) {
             console.error("Socket.io error on orderStatusUpdate:", socketError);
+        }
+
+        // Send push notification when order is Ready
+        if (status === "Ready") {
+            notifyOrderReadyPush(order).catch(e => console.error("Push error:", e.message));
         }
 
         res.status(200).json({ success: true, message: `Order marked as ${status}`, order });

@@ -4,6 +4,7 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuthStore } from "./store/authStore";
 import { startAutoFlush } from "./api/offlineQueue";
+import { registerForPushNotifications } from "./api/notifications";
 import LoginScreen from "./screens/LoginScreen";
 import DashboardScreen from "./screens/DashboardScreen";
 import MenuScreen from "./screens/MenuScreen";
@@ -76,6 +77,14 @@ export default function App() {
             console.log(`[AutoFlush] Synced ${result.flushed} orders`);
         });
         return stopFlush;
+    }, [isAuthenticated]);
+
+    // Register for push notifications when authenticated
+    useEffect(() => {
+        if (!isAuthenticated) return;
+        registerForPushNotifications().then(token => {
+            if (token) console.log("[Push] Registered:", token);
+        });
     }, [isAuthenticated]);
 
     return (
