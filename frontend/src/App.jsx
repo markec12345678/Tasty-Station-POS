@@ -45,6 +45,7 @@ const ReportsDashboard = lazy(() => import('./pages/Admin/pages/ReportsDashboard
 const QRCodeGenerator = lazy(() => import('./pages/Admin/pages/QRCodeGenerator'));
 const OutletManagement = lazy(() => import('./pages/Admin/pages/OutletManagement'));
 const FiscalInvoices = lazy(() => import('./pages/Admin/pages/FiscalInvoices'));
+const ModifierManagement = lazy(() => import('./pages/Admin/pages/ModifierManagement'));
 
 import ChatWidget from './components/chat/ChatWidget';
 import { Toaster } from 'sonner';
@@ -223,6 +224,11 @@ const App = () => {
           <Route path="/admin/fiscal" element={
             <Suspense fallback={<PageLoader />}>
               <FiscalInvoices />
+            </Suspense>
+          } />
+          <Route path="/admin/modifiers" element={
+            <Suspense fallback={<PageLoader />}>
+              <ModifierManagement />
             </Suspense>
           } />
         </Route>

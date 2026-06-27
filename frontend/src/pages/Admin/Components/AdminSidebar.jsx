@@ -27,6 +27,7 @@ import {
     QrCode,
     Building2,
     Receipt,
+    SlidersHorizontal,
 } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import { cn } from '@/lib/utils'
@@ -44,6 +45,7 @@ const AdminSidebar = () => {
         { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, badge: 0, link: '/admin' },
         { id: 'reports-dashboard', label: 'Reports Dashboard', icon: BarChart3, badge: 0, link: '/admin/reports-dashboard' },
         { id: 'menu', label: 'Menu', icon: ShoppingCart, badge: 3, link: '/admin/menu' },
+        { id: 'modifiers', label: 'Modifiers', icon: SlidersHorizontal, badge: 0, link: '/admin/modifiers' },
         { id: 'tables', label: 'Manage Tables', icon: Grid2x2Check, badge: 0, link: '/admin/tables' },
         { id: 'qr-codes', label: 'QR Codes', icon: QrCode, badge: 0, link: '/admin/qr-codes' },
         { id: 'inventory', label: 'Inventory', icon: Package, badge: 5, link: '/admin/inventory' },
