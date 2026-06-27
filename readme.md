@@ -190,6 +190,38 @@
 - **Mobile-Optimized:** Touch-friendly interface designed for phone screens.
 - **Search by Order ID:** Guests can manually enter their order ID to track.
 
+### 🍔 Item Modifiers (NEW — Toast POS parity)
+- **Modifier Groups:** Create reusable groups (Cook Temperature, Extras, Sauce, Size, Remove Ingredients).
+- **Single/Multiple Selection:** Radio buttons for single choice, checkboxes for multiple.
+- **Price Adjustments:** Per-modifier price additions (+€2.00) or overrides (set price to €14.99).
+- **Required Groups:** Force guest to select (e.g., must choose cook temperature).
+- **Max Selections:** Limit number of choices in multiple groups.
+- **Default Selections:** Pre-select common options.
+- **Modifier Management Admin:** Full CRUD UI at `/admin/modifiers`.
+- **Integrated in QR Ordering:** ModifierDialog popup when selecting items with modifier groups.
+- **KDS Display:** Modifiers shown as teal badges on kitchen order cards.
+- **Server-Side Price Calculation:** Backend validates modifiers and recalculates prices.
+
+### ⏱️ Table Timers (NEW)
+- **Real-Time Duration:** Shows how long guests have been seated at each table.
+- **Color-Coded:** Green (<45min), Amber (45-90min), Red (>90min) with pulsing warning.
+- **Integrated in ManageTables:** Duration field in table details sidebar.
+- **Integrated in WaiterTerminal:** Duration in each occupied table mini card.
+- **Auto-Update:** Updates every second via setInterval.
+
+### 💁 Service Charges (NEW)
+- **Auto-Calculate:** 10% service charge for Dine-in parties of 6+ guests.
+- **Toggle:** Cashier can enable/disable service charge per order.
+- **Transparent:** Shows in checkout summary with explanation (e.g., "Service (10% for 6+ guests)").
+- **Order Model:** serviceCharge, serviceChargeRate, finalTotal fields.
+
+### 🍽️ Course Routing (NEW)
+- **Multi-Course Orders:** Items can be assigned to courses (1=appetizer, 2=main, 3=dessert).
+- **Send to Kitchen:** POST `/api/orders/:id/send-course` sends specific course to KDS.
+- **Staggered Delivery:** Kitchen receives course 1 first, then course 2 when ready, etc.
+- **Socket.io:** `courseSent` event emitted for real-time KDS updates.
+- **Per-Item Tracking:** `sentToKitchen` flag on each item prevents duplicate sends.
+
 ---
 
 ## 🌍 Internationalization (i18n)
@@ -388,6 +420,9 @@ VITE_API_BASE_URL=http://localhost:3000
 | POST   | `/api/orders`                    | Create order                         | User     |
 | GET    | `/api/orders/kitchen`            | Kitchen orders                       | User     |
 | POST   | `/api/orders/:id/payment`        | Add payment (split support)          | User     |
+| POST   | `/api/orders/:id/send-course`    | Send course to kitchen               | User     |
+| GET    | `/api/modifiers`                 | List modifier groups                 | User     |
+| POST   | `/api/modifiers`                 | Create modifier group                | Admin    |
 | GET    | `/api/tax/active`                | Get active tax rate                  | Public   |
 | GET    | `/api/loyalty/client/:id`        | Client loyalty info                  | User     |
 | POST   | `/api/loyalty/redeem`            | Redeem reward                        | User     |
@@ -426,6 +461,10 @@ VITE_API_BASE_URL=http://localhost:3000
 - [x] ~~**Email Notifications**: Order ready, loyalty tier upgrade, low stock, daily report.~~ ✅ Done
 - [x] ~~**Customer Order Tracking**: Public tracking page with auto-refresh.~~ ✅ Done
 - [x] ~~**Live Dashboard**: Real-time WebSocket activity feed on Admin Dashboard.~~ ✅ Done
+- [x] ~~**Item Modifiers**: Toast POS parity — modifier groups with pricing.~~ ✅ Done
+- [x] ~~**Table Timers**: Real-time seating duration with color coding.~~ ✅ Done
+- [x] ~~**Service Charges**: Auto-charge for large parties.~~ ✅ Done
+- [x] ~~**Course Routing**: Multi-course order routing to kitchen.~~ ✅ Done
 - [ ] **Mobile App (React Native)**: Native POS for handheld device speed.
 - [ ] **Multi-currency Exchange Rates**: Live EUR/USD/Rs conversion.
 - [ ] **Push Notifications**: Browser + mobile push for new orders.

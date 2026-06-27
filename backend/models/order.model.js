@@ -52,14 +52,26 @@ const orderSchema = new mongoose.Schema({
             min: 1
         },
         // === Modifier selections ===
-        // Izbrani modifikatorji za ta artikel v tem naročilu
-        // npr. [{ groupName: "Cook Temperature", modifierName: "Medium", priceAdjustment: 0 }]
         modifiers: [{
             groupName: { type: String, required: true },
             modifierName: { type: String, required: true },
             priceAdjustment: { type: Number, default: 0 },
             priceOverride: { type: Number, default: null },
         }],
+        // === Course routing ===
+        // Course number: 1=predjed, 2=glavna jed, 3=desert
+        // Kuhinja prejme course 1, ko je pripravljen, nato course 2, itd.
+        course: {
+            type: Number,
+            default: 1,
+            min: 1,
+            max: 5,
+        },
+        // Ali je ta item že poslan v kuhinjo
+        sentToKitchen: {
+            type: Boolean,
+            default: false,
+        },
         // Končna cena tega artikla z modifikatorji (base price + vsi adjustments)
         unitPrice: Number,
         // Skupna cena za to postavko (unitPrice × quantity)

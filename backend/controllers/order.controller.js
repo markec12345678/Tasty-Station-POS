@@ -277,4 +277,127 @@ const updateOrderStatus = async (req, res, next) => {
     }
 };
 
-module.exports = { createOrder, getAllOrders, getOrderById, getOrderStats, updateOrderStatus, getKitchenOrders };
+/**
+ * POST /api/orders/:id/payment
+ * Doda plačilo k order-ju (split payments).
+ */
+const addPayment = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { method, amount, reference } = req.body;
+
+        if (!["Cash", "Card", "Online"].includes(method)) {
+            return res.status(400).json({ success: false, message: "Invalid payment method" });
+        }
+        if (!amount || amount <= 0) {
+            return res.status(400).json({ success: false, message: "Amount must be greater than 0" });
+        }
+
+        const order = await Order.findById(id);
+        if (!order) return res.status(404).json({ success: false, message: "Order not found" });
+
+        const currentPaid = (order.payments || []).reduce((sum, p) => sum + p.amount, 0);
+        const remaining = order.totalAmount - currentPaid;
+
+        if (amount > remaining + 0.01) {
+            return res.status(400).json({
+                success: false,
+                message: `Payment exceeds remaining balance (€${remaining.toFixed(2)})`
+            });
+        }
+
+        order.payments = order.payments || [];
+        order.payments.push({
+            method, amount: Math.round(amount * 100) / 100,
+            reference: reference || null, timestamp: new Date()
+        });
+
+        order.amountPaid = order.payments.reduce((sum, p) => sum + p.amount, 0);
+        order.balanceDue = Math.max(0, order.totalAmount - order.amountPaid);
+        order.paymentMethod = order.payments.length > 1 ? "Split" : order.payments[0].method;
+
+        if (order.balanceDue === 0 && order.status === "Pending") {
+            order.status = "Completed";
+        }
+
+        await order.save();
+
+        const populatedOrder = await Order.findById(order._id)
+            .populate("client", "name phone")
+            .populate("user", "name")
+            .populate("table", "name zone");
+
+        try {
+            const io = getIo();
+            io.emit("paymentUpdate", populatedOrder);
+            if (order.balanceDue === 0) io.emit("orderStatusUpdate", populatedOrder);
+        } catch (e) { console.error("Socket error:", e); }
+
+        res.status(200).json({
+            success: true,
+            message: order.balanceDue === 0 ? "Payment complete — order Completed" : `€${order.balanceDue.toFixed(2)} remaining`,
+            order: populatedOrder,
+            balanceDue: order.balanceDue,
+            isFullyPaid: order.balanceDue === 0
+        });
+    } catch (error) { next(error); }
+};
+
+/**
+ * POST /api/orders/:id/send-course
+ * Pošlje specifični course (predjed/glavna jed/desert) v kuhinjo.
+ * Body: { course: 1 } — pošlje vse iteme s tem course-om, ki še niso poslani.
+ */
+const sendCourseToKitchen = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { course = 1 } = req.body;
+
+        const order = await Order.findById(id);
+        if (!order) {
+            return res.status(404).json({ success: false, message: "Order not found" });
+        }
+
+        // Označi iteme s tem course-om kot poslane
+        let sentCount = 0;
+        order.items.forEach(item => {
+            if (item.course === course && !item.sentToKitchen) {
+                item.sentToKitchen = true;
+                sentCount++;
+            }
+        });
+
+        if (sentCount === 0) {
+            return res.status(400).json({
+                success: false,
+                message: `No unsent items found for course ${course}`
+            });
+        }
+
+        await order.save();
+
+        const populatedOrder = await Order.findById(order._id)
+            .populate("client", "name phone")
+            .populate("user", "name")
+            .populate("table", "name zone");
+
+        // Emit Socket.io — samo poslani itemi gredo v KDS
+        try {
+            const io = getIo();
+            io.emit("courseSent", { order: populatedOrder, course, sentCount });
+        } catch (socketError) {
+            console.error("Socket.io error on courseSent:", socketError);
+        }
+
+        res.status(200).json({
+            success: true,
+            message: `Course ${course} sent to kitchen (${sentCount} items)`,
+            order: populatedOrder,
+            sentCount,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+module.exports = { createOrder, getAllOrders, getOrderById, getOrderStats, updateOrderStatus, getKitchenOrders, sendCourseToKitchen, addPayment };
