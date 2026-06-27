@@ -7,14 +7,42 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
-    Coins, Save, RotateCcw, CheckCircle2, DollarSign
+    Coins, Save, RotateCcw, CheckCircle2, DollarSign, RefreshCw, TrendingUp, Clock
 } from 'lucide-react';
 import { useCurrencyStore } from '@/store/useCurrencyStore';
+import axiosInstance from '@/axios/axiosInstace';
 import { cn } from "@/lib/utils";
 import { toast } from 'sonner';
+import { format } from "date-fns";
 
 const CurrencySettings = () => {
     const { settings, presets, isLoading, getSettings, updateSettings, applyPreset } = useCurrencyStore();
+    const [exchangeRates, setExchangeRates] = useState(null);
+    const [refreshingRates, setRefreshingRates] = useState(false);
+
+    const fetchRates = async () => {
+        try {
+            const res = await axiosInstance.get("/exchange-rates");
+            setExchangeRates(res.data);
+        } catch (e) { console.error("Exchange rates error:", e); }
+    };
+
+    const handleRefreshRates = async () => {
+        setRefreshingRates(true);
+        try {
+            const res = await axiosInstance.post("/exchange-rates/refresh");
+            if (res.data.success) {
+                toast.success(`Updated ${res.data.count} exchange rates from ${res.data.source}`);
+                fetchRates();
+            }
+        } catch (e) {
+            toast.error("Failed to refresh rates");
+        } finally {
+            setRefreshingRates(false);
+        }
+    };
+
+    useEffect(() => { getSettings(); fetchRates(); }, [getSettings]);
 
     const [formData, setFormData] = useState({
         code: "EUR", symbol: "€", symbolPosition: "after", decimals: 2,
@@ -135,6 +163,56 @@ const CurrencySettings = () => {
                                 </button>
                             ))}
                         </div>
+                    </CardContent>
+                </Card>
+
+                {/* Live Exchange Rates */}
+                <Card>
+                    <CardHeader>
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <CardTitle className="text-base flex items-center gap-2">
+                                    <TrendingUp className="size-4 text-primary" />
+                                    Live Exchange Rates
+                                </CardTitle>
+                                <CardDescription>Trenutni tečaji proti {exchangeRates?.base || "EUR"}</CardDescription>
+                            </div>
+                            <Button variant="outline" size="sm" onClick={handleRefreshRates} disabled={refreshingRates}>
+                                <RefreshCw className={cn("size-4", refreshingRates && "animate-spin")} />
+                            </Button>
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        {exchangeRates ? (
+                            <div className="space-y-3">
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                    <Clock className="size-3" />
+                                    Updated: {format(new Date(exchangeRates.lastUpdated), "MMM d, HH:mm")}
+                                    ({exchangeRates.ageMinutes}min ago)
+                                    {exchangeRates.isStale && (
+                                        <Badge variant="outline" className="text-[9px] bg-amber-500/10 text-amber-700">
+                                            Stale
+                                        </Badge>
+                                    )}
+                                    <Badge variant="outline" className="text-[9px]">{exchangeRates.source}</Badge>
+                                </div>
+                                <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+                                    {exchangeRates.rates && Object.entries(exchangeRates.rates).map(([code, rate]) => (
+                                        <div key={code} className="p-2 rounded-md border bg-card text-center">
+                                            <div className="text-xs font-bold">{code}</div>
+                                            <div className="text-sm font-mono">{Number(rate).toFixed(4)}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                    1 {exchangeRates.base} = prikazani znesek v ciljni valuti
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="text-center py-8 text-muted-foreground text-sm">
+                                No exchange rate data — click refresh to fetch
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
 
