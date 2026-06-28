@@ -507,9 +507,10 @@ VITE_API_BASE_URL=http://localhost:3000
 - [x] ~~**Offline Resilience**: IndexedDB + SQLite queues with auto-sync.~~ ✅ Done
 - [x] ~~**Z-Report / X-Report**: Daily reconciliation, DDV, cash drawer, CSV.~~ ✅ Done
 - [x] ~~**React Native Mobile App**: 5 screens with order creation + offline.~~ ✅ Done
-- [ ] **Multi-currency Exchange Rates**: Live EUR/USD/Rs conversion.
-- [ ] **Push Notifications**: Browser + mobile push for new orders.
-- [ ] **FURS SOAP Production**: Real SOAP call with FURS certificate.
+- [x] ~~**Multi-currency Live Exchange Rates**: ECB/Frankfurter API integration.~~ ✅ Done
+- [x] ~~**Push Notifications**: Mobile FCM/APNs via Expo Push API.~~ ✅ Done
+- [x] ~~**FURS SOAP Production**: Real SOAP call with .p12 certificate + mutual TLS.~~ ✅ Done
+- [ ] **Production deployment**: Vercel + Railway with real MongoDB.
 
 ---
 

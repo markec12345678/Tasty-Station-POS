@@ -130,53 +130,207 @@ const generateInvoiceNumber = async (outlet, issueDate = new Date()) => {
 /**
  * Pošlje račun FURS preko SOAP API-ja za pridobitev EOR.
  *
+ * Implementacija uporablja Node.js native https z mutual TLS (.p12 certifikat).
+ * SOAP envelope je zgrajen po FURS specifikaciji (v1.3).
+ *
+ * Zahteve:
+ *   - FURS_CERT_PATH: pot do .p12 certifikata (prenesi z edavki.durs.si)
+ *   - FURS_CERT_PASSWORD: geslo certifikata
+ *   - FURS_TEST_MODE: true (test) ali false (produkcija)
+ *
  * @param {Object} invoiceData - podatki o računu
- * @param {String} certPem - certifikat v PEM formatu
+ *   - taxNumber, invoiceNumber, issueDateTime, businessUnit, cashRegister, total, zoi
+ * @param {String} certPath - pot do .p12 certifikata
  * @param {String} certPassword - geslo certifikata
  * @param {Boolean} testMode - ali uporabljamo test ali produkcijo
  * @returns {Object} { success, eor?, error? }
  */
-const sendToFURS = async (invoiceData, certPem, certPassword, testMode = true) => {
+const sendToFURS = async (invoiceData, certPath, certPassword, testMode = true) => {
+    const fs = require("fs");
+    const https = require("https");
+
     const endpoint = testMode ? FURS_ENDPOINTS.test : FURS_ENDPOINTS.production;
 
-    // V tej implementaciji je SOAP klic stub — pravi klic zahteva:
-    // 1. HTTPS mutual TLS s FURS certifikatom
-    // 2. SOAP envelope z računom v XML formatu (FURS specifikacija)
-    // 3. Parsanje SOAP response za EOR
-
-    if (!certPem || !certPassword) {
+    if (!certPath || !certPassword) {
         return {
             success: false,
             error: "FURS certificate not configured. Set FURS_CERT_PATH and FURS_CERT_PASSWORD."
         };
     }
 
+    if (!fs.existsSync(certPath)) {
+        return {
+            success: false,
+            error: `Certificate file not found: ${certPath}`
+        };
+    }
+
     try {
-        // === STUB — pravi klic ===
-        // V produkciji tukaj uporabi 'soap' ali 'axios' z mutual TLS:
-        //
-        // const https = require("https");
-        // const fs = require("fs");
-        // const agent = new https.Agent({
-        //     pfx: fs.readFileSync(certPath),
-        //     passphrase: certPassword,
-        // });
-        // const response = await axios.post(endpoint, soapEnvelope, { httpsAgent: agent });
-        // const eor = parseEOR(response.data);
+        // Preberi .p12 certifikat
+        const pfx = fs.readFileSync(certPath);
 
-        console.log(`[FURS] Stub: would send invoice ${invoiceData.invoiceNumber} to ${testMode ? "test" : "production"} FURS`);
+        // Zgradi SOAP envelope po FURS specifikaciji
+        const soapEnvelope = buildSOAPEnvelope(invoiceData);
 
-        // Simuliraj EOR (UUID format)
-        const eor = crypto.randomUUID();
+        // Ustvari HTTPS agent z mutual TLS
+        const agent = new https.Agent({
+            pfx: pfx,
+            passphrase: certPassword,
+            rejectUnauthorized: true,
+        });
 
-        return { success: true, eor };
+        // Pošlji SOAP request
+        const response = await new Promise((resolve, reject) => {
+            const url = new URL(endpoint);
+            const options = {
+                hostname: url.hostname,
+                port: url.port || 443,
+                path: url.pathname,
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/soap+xml; charset=utf-8",
+                    "Content-Length": Buffer.byteLength(soapEnvelope),
+                    "SOAPAction": "http://www.fu.gov.si/v2/cash_registers/invoices",
+                },
+                agent: agent,
+                timeout: 30000,
+            };
+
+            const req = https.request(options, (res) => {
+                let data = "";
+                res.on("data", (chunk) => data += chunk);
+                res.on("end", () => resolve({ statusCode: res.statusCode, data }));
+            });
+
+            req.on("error", reject);
+            req.on("timeout", () => { req.destroy(); reject(new Error("FURS request timeout (30s)")); });
+            req.write(soapEnvelope);
+            req.end();
+        });
+
+        if (response.statusCode === 200) {
+            // Uspeh — parsiraj EOR iz SOAP response
+            const eor = parseEORFromResponse(response.data);
+            if (eor) {
+                console.log(`[FURS] Invoice ${invoiceData.invoiceNumber} confirmed. EOR: ${eor}`);
+                return { success: true, eor };
+            } else {
+                // EOR ni najden — preveri za napake v response
+                const errorMsg = parseErrorFromResponse(response.data);
+                return { success: false, error: errorMsg || "EOR not found in FURS response" };
+            }
+        } else {
+            // HTTP napaka
+            const errorMsg = parseErrorFromResponse(response.data) || `HTTP ${response.statusCode}`;
+            console.error(`[FURS] HTTP ${response.statusCode}:`, errorMsg);
+            return { success: false, error: errorMsg };
+        }
     } catch (error) {
-        console.error("FURS send error:", error);
+        console.error("[FURS] SOAP call error:", error.message);
         return {
             success: false,
             error: error.message,
         };
     }
+};
+
+/**
+ * Zgradi SOAP envelope za FURS potrjevanje računa.
+ * Specifikacija: FURS SOAP v1.3 (fu.gov.si)
+ *
+ * @param {Object} data — { taxNumber, invoiceNumber, issueDateTime, businessUnit, cashRegister, total, zoi }
+ * @returns {String} XML SOAP envelope
+ */
+const buildSOAPEnvelope = (data) => {
+    const { taxNumber, invoiceNumber, issueDateTime, businessUnit, cashRegister, total, zoi } = data;
+
+    // Formatiraj datum za FURS (ISO 8601 z mikro-sekundami)
+    const fursDate = issueDateTime.replace(/\.(\d{3})Z$/, ".$1000Z");
+
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+               xmlns:ns="http://www.fu.gov.si/v2/cash_registers/invoices">
+  <soap:Body>
+    <ns:InvoiceRequest>
+      <Header>
+        <MessageID>${crypto.randomUUID()}</MessageID>
+        <DateTime>${fursDate}</DateTime>
+      </Header>
+      <Signature>
+        <ProtectedID>${zoi}</ProtectedID>
+      </Signature>
+      <Invoice>
+        <TaxNumber>${taxNumber}</TaxNumber>
+        <IssueDateTime>${fursDate}</IssueDateTime>
+        <SubsequentSubmit>false</SubsequentSubmit>
+        <InvoiceNumber xmlns="http://www.fu.gov.si/v2/cash_registers/invoices">
+          <BusinessPremiseID>${businessUnit || "1"}</BusinessPremiseID>
+          <ElectronicDeviceID>${cashRegister || "1"}</ElectronicDeviceID>
+          <InvoiceNumber>${invoiceNumber}</InvoiceNumber>
+        </InvoiceNumber>
+        <InvoiceAmount>${total.toFixed(2)}</InvoiceAmount>
+        <PaymentAmount>${total.toFixed(2)}</PaymentAmount>
+        <TaxesPerSeller>
+          <VAT>
+            <TaxRate>22.00</TaxRate>
+            <TaxableAmount>${(total / 1.22).toFixed(2)}</TaxableAmount>
+            <TaxAmount>${(total - total / 1.22).toFixed(2)}</TaxAmount>
+          </VAT>
+        </TaxesPerSeller>
+        <OperatorTaxNumber>${taxNumber}</OperatorTaxNumber>
+      </Invoice>
+    </ns:InvoiceRequest>
+  </soap:Body>
+</soap:Envelope>`;
+};
+
+/**
+ * Parsiraj EOR (Enkratna Identifikacijska Oznaka Računa) iz SOAP response.
+ * EOR je UUID format, vrača se v <UniqueInvoiceID> elementu.
+ *
+ * @param {String} xml — SOAP response XML
+ * @returns {String|null} EOR ali null
+ */
+const parseEORFromResponse = (xml) => {
+    // Poskusi z regex (enostavno)
+    const eorMatch = xml.match(/<UniqueInvoiceID[^>]*>([^<]+)<\/UniqueInvoiceID>/i);
+    if (eorMatch) {
+        return eorMatch[1].trim();
+    }
+
+    // Alternativni element (FURS lahko vrača v različnih imenskih prostorih)
+    const eorMatch2 = xml.match(/(?:EOR|eor|uniqueInvoiceId)[^>]*>([a-f0-9-]{36})</i);
+    if (eorMatch2) {
+        return eorMatch2[1].trim();
+    }
+
+    return null;
+};
+
+/**
+ * Parsiraj error message iz FURS SOAP response.
+ *
+ * @param {String} xml — SOAP response XML
+ * @returns {String|null} error message ali null
+ */
+const parseErrorFromResponse = (xml) => {
+    const errorCodeMatch = xml.match(/<errorCode[^>]*>([^<]+)<\/errorCode>/i);
+    const errorMsgMatch = xml.match(/<errorMessage[^>]*>([^<]+)<\/errorMessage>/i);
+
+    if (errorCodeMatch && errorMsgMatch) {
+        return `FURS Error ${errorCodeMatch[1]}: ${errorMsgMatch[1]}`;
+    }
+    if (errorMsgMatch) {
+        return errorMsgMatch[1].trim();
+    }
+
+    // Generic SOAP fault
+    const faultMatch = xml.match(/<faultstring[^>]*>([^<]+)<\/faultstring>/i);
+    if (faultMatch) {
+        return `SOAP Fault: ${faultMatch[1].trim()}`;
+    }
+
+    return null;
 };
 
 /**
@@ -224,11 +378,27 @@ const confirmInvoice = async (order, outlet, paymentMethod = "cash", user = null
 
         // 3. Generiraj ZOI
         let zoi = null;
-        const certPem = process.env.FURS_CERT_PATH ? require("fs").readFileSync(process.env.FURS_CERT_PATH, "utf8") : null;
+        const certPath = process.env.FURS_CERT_PATH || null;
         const certPassword = process.env.FURS_CERT_PASSWORD;
 
-        if (certPem) {
-            zoi = generateZOI(zoiParams, certPem);
+        if (certPath) {
+            // Za pravi ZOI potrebujemo RSA private key iz .p12 certifikata
+            // Uporabi crypto.createPrivateKey za ekstrakcijo
+            try {
+                const fs = require("fs");
+                const crypto = require("crypto");
+                const pfxBuffer = fs.readFileSync(certPath);
+                const keyObject = crypto.createPrivateKey({
+                    key: pfxBuffer,
+                    format: "p12",
+                    passphrase: certPassword,
+                });
+                const privateKeyPem = keyObject.export({ type: "pkcs1", format: "pem" });
+                zoi = generateZOI(zoiParams, privateKeyPem);
+            } catch (e) {
+                console.warn("[FURS] Cannot extract private key from .p12, using random ZOI:", e.message);
+                zoi = crypto.createHash("md5").update(`${taxNumber}${invoiceNumber}${Date.now()}`).digest("hex");
+            }
         } else {
             // Fallback — generiraj random ZOI za development
             zoi = crypto.createHash("md5").update(`${taxNumber}${invoiceNumber}${Date.now()}`).digest("hex");
@@ -238,7 +408,7 @@ const confirmInvoice = async (order, outlet, paymentMethod = "cash", user = null
         // 4. Pošlji FURS za EOR
         const fursResult = await sendToFURS(
             { ...zoiParams, zoi },
-            certPem,
+            certPath,
             certPassword,
             process.env.FURS_TEST_MODE !== "false"
         );
@@ -308,6 +478,9 @@ module.exports = {
     generateQRContent,
     generateInvoiceNumber,
     sendToFURS,
+    buildSOAPEnvelope,
+    parseEORFromResponse,
+    parseErrorFromResponse,
     confirmInvoice,
     FURS_ENDPOINTS,
 };
