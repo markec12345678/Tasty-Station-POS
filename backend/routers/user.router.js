@@ -1,6 +1,6 @@
 const { register, login, pinLogin, getAllStaff, createNewStaff, updateStaff, updatePin, toggleStaffStatus, deleteStaff } = require('../controllers/user.controller');
 const { body } = require('express-validator');
-const { protectedRoute, isAdmin } = require('../middlewares/auth.middleware');
+const { protectedRoute } = require('../middlewares/auth.middleware');
 const { requirePermission } = require('../middlewares/rbac.middleware');
 const User = require('../models/user.model');
 const router = require('express').Router();

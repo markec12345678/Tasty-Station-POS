@@ -32,9 +32,15 @@ const seedData = async () => {
         console.log("Database cleared.");
 
         // 2. Seed Users
+        // Uporabimo User.create() (ne insertMany), da se pre("save") hook
+        // za bcrypt hashing gesel pravilno sproži — drugače bi seed uporabniki
+        // imeli plaintext gesla in se ne bi mogli prijaviti.
         console.log("Seeding Users...");
-        await User.insertMany(data.users);
-        console.log(`Inserted ${data.users.length} users.`);
+        const createdUsers = [];
+        for (const u of data.users) {
+            createdUsers.push(await User.create(u));
+        }
+        console.log(`Inserted ${createdUsers.length} users.`);
 
         // 3. Seed Categories
         console.log("Seeding Categories...");

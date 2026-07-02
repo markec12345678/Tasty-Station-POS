@@ -25,21 +25,28 @@ import { PieChartDashboard } from '../components/PieChartDashboard'
 import { ChartRadarDotsDashboard } from '../components/ChartRadarDotsDashboard'
 import OrderTable from '../components/OrderTable'
 import { useOrderStore } from '@/store/useOrderStore'
+import { useCurrencyStore } from '@/store/useCurrencyStore'
 import { useNavigate } from 'react-router-dom'
 
 const DashboardHome = () => {
     const { stats, recentOrders, getStats, isLoading } = useOrderStore();
+    // Popravek: prej hardcoded "Rs" (pakijska rupija) — aplikacija je EUR/SI.
+    // Sedaj uporabljamo useCurrencyStore.format() za pravilen prikaz valute.
+    const format = useCurrencyStore((s) => s.format);
+    const getSettings = useCurrencyStore((s) => s.getSettings);
+    const currencySettings = useCurrencyStore((s) => s.settings);
     const navigate = useNavigate();
 
     useEffect(() => {
         getStats();
-    }, [getStats]);
+        if (!currencySettings) getSettings();
+    }, [getStats, getSettings, currencySettings]);
 
     // POS dashboard stats mapping
     const statCards = [
         {
             title: "Total Revenue",
-            value: `Rs ${stats?.totalRevenue?.toLocaleString() || '0'}`,
+            value: format(stats?.totalRevenue || 0),
             change: "+12.5%", // These could be calculated if we had historical data
             isPositive: true,
             icon: <DollarSign className="h-5 w-5" />,
@@ -59,7 +66,7 @@ const DashboardHome = () => {
         },
         {
             title: "Average Order Value",
-            value: `Rs ${Math.round(stats?.avgOrderValue || 0).toLocaleString()}`,
+            value: format(Math.round(stats?.avgOrderValue || 0)),
             change: "+5.3%",
             isPositive: true,
             icon: <BarChart3 className="h-5 w-5" />,

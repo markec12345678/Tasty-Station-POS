@@ -3,7 +3,16 @@ const User = require('../models/user.model');
 
 const protectedRoute = async (req, res, next) => {
     try {
-        const token = req.cookies.token;
+        // 1. Poskusi prebrati token iz HttpOnly piščka (web klienti).
+        // 2. Fallback: Authorization: Bearer <token> (mobilni klienti — RN ne
+        //    persistira piščkov, zato pošlje JWT kot Bearer header).
+        let token = req.cookies.token;
+        if (!token) {
+            const authHeader = req.headers.authorization || req.headers.Authorization;
+            if (authHeader && authHeader.startsWith("Bearer ")) {
+                token = authHeader.slice(7);
+            }
+        }
         if (!token) {
             console.log("Auth Middleware: No Token Provided");
             return res.status(401).json({
@@ -19,7 +28,7 @@ const protectedRoute = async (req, res, next) => {
                 message: "Unauthorized - Invalid Token"
             })
         }
-        const user = await User.findById(decoded.userId).select('-password');
+        const user = await User.findById(decoded.userId).select('-password -pin');
         if (!user) {
             console.log("Auth Middleware: User Not Found for ID:", decoded.userId);
             return res.status(401).json({

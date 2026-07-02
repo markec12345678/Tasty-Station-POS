@@ -21,7 +21,6 @@ const Discount = require("./models/discount.model");
 const Reward = require("./models/reward.model");
 const LoyaltySettings = require("./models/loyaltySettings.model");
 const CurrencySettings = require("./models/currencySettings.model");
-const Order = require("./models/order.model");
 const bcrypt = require("bcryptjs");
 const data = require("./data");
 

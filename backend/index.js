@@ -19,7 +19,6 @@ const inventoryRouter = require("./routers/inventory.router");
 const reportRouter = require("./routers/report.router");
 const clientRouter = require("./routers/client.router");
 const dashboardRouter = require("./routers/dashboard.router");
-const redisTestRouter = require("./routers/redis.test.router");
 const backupRouter = require("./routers/backup.router");
 const loyaltyRouter = require("./routers/loyalty.router");
 const currencyRouter = require("./routers/currency.router");
@@ -109,7 +108,6 @@ app.use('/api/email', emailRouter);
 app.use('/api/modifiers', modifierRouter);
 app.use('/api/z-report', zreportRouter);
 app.use('/api/exchange-rates', exchangeRateRouter);
-app.use('/api', redisTestRouter);
 const chatRouter = require("./routers/chat.router");
 app.use('/api/chat', chatRouter);
 

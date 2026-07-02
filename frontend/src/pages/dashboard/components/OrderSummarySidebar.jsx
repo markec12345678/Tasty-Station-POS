@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
     X,
     Printer,
@@ -21,9 +21,25 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { motion as Motion, AnimatePresence } from 'framer-motion';
+import { useTaxStore } from '@/store/useTaxStore';
+import { useCurrencyStore } from '@/store/useCurrencyStore';
 
 
 const OrderSummarySidebar = ({ order, onClose, onUpdateStatus }) => {
+    // Popravek: prej hardcoded 10% davek ("tax = subtotal * 0.1") in "Rs" valuta.
+    // Sedaj uporabljamo aktivno tax stopnjo iz useTaxStore in format() iz useCurrencyStore.
+    const getTaxRate = useTaxStore((s) => s.getTaxRate);
+    const getActiveTax = useTaxStore((s) => s.getActiveTax);
+    const activeTax = useTaxStore((s) => s.activeTax);
+    const format = useCurrencyStore((s) => s.format);
+    const getSettings = useCurrencyStore((s) => s.getSettings);
+    const currencySettings = useCurrencyStore((s) => s.settings);
+
+    useEffect(() => {
+        if (!activeTax) getActiveTax();
+        if (!currencySettings) getSettings();
+    }, [activeTax, getActiveTax, currencySettings, getSettings]);
+
     if (!order) return (
         <div className="h-full flex flex-col items-center justify-center text-center p-12 space-y-6 bg-white/40 dark:bg-gray-900/40 backdrop-blur-xl rounded-[3rem] border-2 border-dashed border-gray-200 dark:border-gray-800">
             <div className="bg-gray-100 dark:bg-gray-800 p-6 rounded-full text-gray-400">
@@ -46,7 +62,7 @@ const OrderSummarySidebar = ({ order, onClose, onUpdateStatus }) => {
 
     const currentStatus = order.status || "Pending";
     const subtotal = order.items?.reduce((acc, item) => acc + (item.price * item.quantity), 0) || 0;
-    const tax = subtotal * 0.1; // 10% example
+    const tax = subtotal * getTaxRate(); // aktivna tax stopnja iz useTaxStore (prej hardcoded 0.1)
     const total = subtotal + tax;
 
     const getStatusAction = () => {
@@ -180,7 +196,7 @@ const OrderSummarySidebar = ({ order, onClose, onUpdateStatus }) => {
 
                                     {/* Price */}
                                     <span className="font-mono text-[12px] font-semibold text-foreground shrink-0 tabular-nums">
-                                        Rs {(item.price * item.quantity).toLocaleString()}
+                                        {format(item.price * item.quantity)}
                                     </span>
                                 </Motion.div>
                             ))}
@@ -196,13 +212,13 @@ const OrderSummarySidebar = ({ order, onClose, onUpdateStatus }) => {
                             <div className="flex justify-between items-center">
                                 <span className="text-[11px] font-medium text-muted-foreground">Subtotal</span>
                                 <span className="font-mono text-[12px] font-semibold text-foreground tabular-nums">
-                                    Rs {subtotal.toLocaleString()}
+                                    {format(subtotal)}
                                 </span>
                             </div>
                             <div className="flex justify-between items-center">
-                                <span className="text-[11px] font-medium text-muted-foreground">Tax (GST 10%)</span>
+                                <span className="text-[11px] font-medium text-muted-foreground">Tax ({(getTaxRate() * 100).toFixed(1).replace(/\.0$/, '')}%)</span>
                                 <span className="font-mono text-[12px] font-semibold text-foreground tabular-nums">
-                                    Rs {tax.toLocaleString()}
+                                    {format(tax)}
                                 </span>
                             </div>
                             <div className="h-px bg-border/50" />
@@ -211,7 +227,7 @@ const OrderSummarySidebar = ({ order, onClose, onUpdateStatus }) => {
                                     Total
                                 </span>
                                 <span className="font-mono text-[18px] font-bold text-foreground tabular-nums tracking-tight">
-                                    Rs {total.toLocaleString()}
+                                    {format(total)}
                                 </span>
                             </div>
                         </div>

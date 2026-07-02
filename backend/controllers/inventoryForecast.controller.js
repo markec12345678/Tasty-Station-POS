@@ -1,8 +1,6 @@
-const mongoose = require("mongoose");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const Inventory = require("../models/inventory.model");
 const Order = require("../models/order.model");
-const MenuItem = require("../models/menu.model").MenuItem;
 
 // Lazy-load Gemini — če API_KEY manjka, fallback na statistiko
 let genAI = null;
@@ -188,7 +186,7 @@ Respond in JSON format.
             let aiResponse;
             try {
                 aiResponse = JSON.parse(text);
-            } catch (e) {
+            } catch (_e) {
                 // Fallback če AI ni vrnil veljavnega JSON-a
                 return res.status(200).json({
                     success: true,

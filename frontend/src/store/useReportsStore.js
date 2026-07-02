@@ -1,45 +1,17 @@
-import { create } from "zustand";
-import axiosInstance from "../axios/axiosInstace";
+/**
+ * DEPRECATED — uporabljaj useReportStore namesto tega.
+ *
+ * Ta datoteka je re-export wrapper za backward-compat: ReportsDashboard.jsx
+ * uvozi `useReportsStore` iz te datoteke. Sedaj delegira na unified
+ * useReportStore, ki vsebuje tako legacy (salesData, cashierData, ...) kot
+ * modern (dashboard, categoryPerformance) report domeno.
+ *
+ * Prejšnje stanje: dva paralelna store-a z duplikacijo /reports/* klicev.
+ */
+import useReportStore from "./useReportStore";
 
-export const useReportsStore = create((set) => ({
-    dashboard: null,
-    categoryPerformance: [],
-    isLoading: false,
-    error: null,
-    period: "monthly",
-    dateRange: { startDate: "", endDate: "" },
+// Re-export z istim imenom, kot ga pričakuje ReportsDashboard.jsx.
+export const useReportsStore = useReportStore;
 
-    getDashboard: async (filter = "monthly", startDate = "", endDate = "") => {
-        set({ isLoading: true, error: null, period: filter });
-        try {
-            const params = new URLSearchParams({ filter });
-            if (startDate) params.append("startDate", startDate);
-            if (endDate) params.append("endDate", endDate);
-            const res = await axiosInstance.get(`/reports/dashboard?${params.toString()}`);
-            set({ dashboard: res.data.dashboard, isLoading: false });
-            return res.data;
-        } catch (error) {
-            console.error("Get dashboard error:", error);
-            set({
-                isLoading: false,
-                error: error.response?.data?.message || "Failed to load dashboard"
-            });
-            return null;
-        }
-    },
-
-    getCategoryPerformance: async (filter = "monthly") => {
-        try {
-            const res = await axiosInstance.get(`/reports/category-performance?filter=${filter}`);
-            set({ categoryPerformance: res.data.data || [] });
-            return res.data;
-        } catch (error) {
-            console.error("Get category performance error:", error);
-            return null;
-        }
-    },
-
-    setDateRange: (startDate, endDate) => set({ dateRange: { startDate, endDate } }),
-}));
-
-export default useReportsStore;
+// Named default export (back-compat za `import useReportsStore from ...`).
+export default useReportStore;

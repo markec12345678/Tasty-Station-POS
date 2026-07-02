@@ -1,6 +1,7 @@
 const User = require("../models/user.model");
 const { validationResult } = require("express-validator");
 const genrateToken = require("../utils/genrateToken");
+const { logAction } = require("../middlewares/auditLog.middleware");
 
 const register = async (req, res) => {
     try {
@@ -23,11 +24,25 @@ const register = async (req, res) => {
         }
 
         const user = await User.create({ name, email, password, role });
-        genrateToken(user._id, res);
+        const token = genrateToken(user._id, res);
+        // Nikoli ne vračaj password hash-a (prejšnje stanje: leak v response).
+        const safeUser = user.toObject();
+        delete safeUser.password;
+        delete safeUser.pin;
+        // Audit log — register (non-blocking)
+        logAction(req, {
+            action: "register",
+            entity: "auth",
+            entityId: user._id,
+            description: `User ${email} registered with role ${role || "client"}`,
+            changes: { before: null, after: { email, role: role || "client" } },
+        }).catch(e => console.error("Audit log error:", e.message));
+
         res.status(201).json({
             success: true,
             message: "User registered successfully",
-            user
+            user: safeUser,
+            token // za mobilne kliente (web uporablja HttpOnly pišček)
         });
     } catch (error) {
         res.status(500).json({
@@ -43,6 +58,14 @@ const login = async (req, res) => {
         const { email, password } = req.body;
         const user = await User.findOne({ email });
         if (!user) {
+            // Audit log — failed login (non-blocking)
+            logAction(req, {
+                action: "login_failed",
+                entity: "auth",
+                description: `Failed login attempt for ${email} (user not found)`,
+                status: "failed",
+                errorMessage: "Invalid credentials",
+            }).catch(e => console.error("Audit log error:", e.message));
             return res.status(401).json({
                 success: false,
                 message: "Invalid credentials"
@@ -50,16 +73,38 @@ const login = async (req, res) => {
         }
         const isMatch = await user.comparePassword(password);
         if (!isMatch) {
+            // Audit log — failed login (non-blocking)
+            logAction(req, {
+                action: "login_failed",
+                entity: "auth",
+                entityId: user._id,
+                description: `Failed login attempt for ${email} (wrong password)`,
+                status: "failed",
+                errorMessage: "Invalid credentials",
+            }).catch(e => console.error("Audit log error:", e.message));
             return res.status(401).json({
                 success: false,
                 message: "Invalid credentials"
             });
         }
-        genrateToken(user._id, res);
+        const token = genrateToken(user._id, res);
+        // Nikoli ne vračaj password hash-a (prejšnje stanje: leak v response).
+        const safeUser = user.toObject();
+        delete safeUser.password;
+        delete safeUser.pin;
+        // Audit log — login (non-blocking)
+        logAction(req, {
+            action: "login",
+            entity: "auth",
+            entityId: user._id,
+            description: `User ${email} logged in`,
+        }).catch(e => console.error("Audit log error:", e.message));
+
         res.status(200).json({
             success: true,
             message: "User logged in successfully",
-            user
+            user: safeUser,
+            token // za mobilne kliente (web uporablja HttpOnly pišček)
         });
     } catch (error) {
         res.status(500).json({
@@ -81,28 +126,61 @@ const login = async (req, res) => {
 const pinLogin = async (req, res) => {
     try {
         const { pin } = req.body;
-        if (!pin || pin.length !== 4) {
+        if (!pin || !/^\d{4}$/.test(pin)) {
             return res.status(400).json({
                 success: false,
                 message: "PIN must be 4 digits"
             });
         }
 
-        const user = await User.findOne({ pin, isActive: true, role: { $ne: "client" } })
-            .select("-password");
+        // PIN-i so sedaj hashirani (bcrypt) — ne moremo jih iskati z direktnim
+        // queryjem. Pridobimo vse kandidate (aktivni osebje s PIN-om) in
+        // uporabimo varno primerjavo. N je majhen (samo osebje).
+        const candidates = await User.find({
+            isActive: true,
+            role: { $ne: "client" },
+            pin: { $ne: null, $exists: true },
+        }).select("-password");
+
+        let user = null;
+        for (const candidate of candidates) {
+            if (await candidate.comparePin(pin)) {
+                user = candidate;
+                break;
+            }
+        }
 
         if (!user) {
+            // Audit log — failed PIN login (non-blocking)
+            logAction(req, {
+                action: "login_failed",
+                entity: "auth",
+                description: `Failed PIN login attempt`,
+                status: "failed",
+                errorMessage: "Invalid PIN",
+            }).catch(e => console.error("Audit log error:", e.message));
             return res.status(401).json({
                 success: false,
                 message: "Invalid PIN"
             });
         }
 
-        genrateToken(user._id, res);
+        // Audit log — PIN login success (non-blocking)
+        logAction(req, {
+            action: "login",
+            entity: "auth",
+            entityId: user._id,
+            description: `User ${user.email} logged in via PIN`,
+        }).catch(e => console.error("Audit log error:", e.message));
+
+        const token = genrateToken(user._id, res);
+        const safeUser = user.toObject();
+        delete safeUser.pin;
         res.status(200).json({
             success: true,
             message: "PIN login successful",
-            user
+            user: safeUser,
+            token // za mobilne kliente (web uporablja HttpOnly pišček)
         });
     } catch (error) {
         res.status(500).json({
@@ -115,7 +193,7 @@ const pinLogin = async (req, res) => {
 
 const getAllStaff = async (req, res) => {
     try {
-        const staff = await User.find({ role: { $ne: 'client' } }).select('-password');
+        const staff = await User.find({ role: { $ne: 'client' } }).select('-password -pin');
         res.status(200).json({
             success: true,
             staff
@@ -143,6 +221,15 @@ const createNewStaff = async (req, res) => {
         const user = await User.create({
             name, email, password, role, pin, designation, permissions, shift, phoneNumber, avatar
         });
+
+        // Audit log — user_create (non-blocking)
+        logAction(req, {
+            action: "user_create",
+            entity: "user",
+            entityId: user._id,
+            description: `Staff ${name} (${email}) created with role ${role} by ${req.user?.email}`,
+            changes: { before: null, after: { name, email, role } },
+        }).catch(e => console.error("Audit log error:", e.message));
 
         res.status(201).json({
             success: true,
@@ -172,13 +259,22 @@ const updateStaff = async (req, res) => {
         // Don't allow password update through this endpoint for now
         delete updates.password;
 
-        const user = await User.findByIdAndUpdate(id, updates, { new: true }).select('-password');
+        const user = await User.findByIdAndUpdate(id, updates, { new: true }).select('-password -pin');
         if (!user) {
             return res.status(404).json({
                 success: false,
                 message: "Staff not found"
             });
         }
+
+        // Audit log — user_update (non-blocking)
+        logAction(req, {
+            action: "user_update",
+            entity: "user",
+            entityId: user._id,
+            description: `Staff ${user.name} (${user.email}) updated by ${req.user?.email}`,
+            changes: { before: { ...updates }, after: { name: user.name, role: user.role, isActive: user.isActive } },
+        }).catch(e => console.error("Audit log error:", e.message));
 
         res.status(200).json({
             success: true,
@@ -211,19 +307,34 @@ const updatePin = async (req, res) => {
             });
         }
 
-        // Preveri unikatnost PIN-a
-        const existing = await User.findOne({ pin, _id: { $ne: id }, isActive: true, role: { $ne: "client" } });
-        if (existing) {
-            return res.status(400).json({
-                success: false,
-                message: `PIN already in use by ${existing.name}`
-            });
+        // Preveri unikatnost PIN-a — ker so hashirani, moramo primerjati
+        // z comparePin čez vse kandidate (razen trenutnega uporabnika).
+        const candidates = await User.find({
+            _id: { $ne: id },
+            isActive: true,
+            role: { $ne: "client" },
+            pin: { $ne: null, $exists: true },
+        });
+        for (const c of candidates) {
+            if (await c.comparePin(pin)) {
+                return res.status(400).json({
+                    success: false,
+                    message: `PIN already in use by ${c.name}`
+                });
+            }
         }
 
-        const user = await User.findByIdAndUpdate(id, { pin }, { new: true }).select('-password');
+        // Uporabimo findById + save() (ne findByIdAndUpdate), da se pre("save")
+        // hook za hashing PIN-a pravilno sproži.
+        const user = await User.findById(id);
         if (!user) {
             return res.status(404).json({ success: false, message: "Staff not found" });
         }
+        user.pin = pin;
+        await user.save();
+        const safeUser = user.toObject();
+        delete safeUser.password;
+        delete safeUser.pin;
 
         res.status(200).json({
             success: true,
@@ -274,6 +385,14 @@ const deleteStaff = async (req, res) => {
             });
         }
 
+        // Audit log — user_delete (non-blocking)
+        logAction(req, {
+            action: "user_delete",
+            entity: "user",
+            entityId: id,
+            description: `Staff ${user.name} (${user.email}) deleted by ${req.user?.email}`,
+            changes: { before: { name: user.name, email: user.email, role: user.role }, after: null },
+        }).catch(e => console.error("Audit log error:", e.message));
         res.status(200).json({
             success: true,
             message: "Staff deleted successfully"

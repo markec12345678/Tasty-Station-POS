@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist, devtools } from "zustand/middleware";
 import axiosInstance from "../axios/axiosInstace";
 import { getSocket } from "../config/socket.config";
+import { notifyOrderReady, notifyQROrder, notifyPayment } from "../utils/notifications";
 
 export const useOrderStore = create(
     devtools(
@@ -22,40 +23,76 @@ export const useOrderStore = create(
                 // Track if listeners are active to prevent duplicates
                 listenersActive: false,
 
-                addToCart: (menuItem) => {
+                // === Cart z modifier podporo ===
+                // Prejšnje stanje: cart key je bil samo menuItem._id — POS terminal
+                // ni mogel prodati istega artikla z različnimi modifierji (npr. dve
+                // kavi z različnim mlekom). Sedaj cartKey vključe modifierje.
+                // Backward-compat: brez modifierjev je cartKey = menuItem._id (string),
+                // kar ustreza obstoječim klicem iz OrderPage (removeFromCart(item._id)).
+                addToCart: (menuItem, modifiers = []) => {
                     const { cart } = get();
-                    const existingItem = cart.find(item => item.menuItem._id === menuItem._id);
+                    // Composite key: menuItem._id + sorted modifier names.
+                    // Brez modifierjev je cartKey = menuItem._id (backward-compat).
+                    const modKey = (modifiers || []).map(m => m.modifierName).sort().join("|");
+                    const cartKey = modifiers && modifiers.length > 0
+                        ? `${menuItem._id}__${modKey}`
+                        : menuItem._id;
 
+                    // Izračunaj unitPrice iz modifierjev (priceOverride > base + sum adjustments)
+                    let unitPrice = menuItem.price;
+                    if (modifiers && modifiers.length > 0) {
+                        for (const mod of modifiers) {
+                            if (mod.priceOverride != null) {
+                                unitPrice = mod.priceOverride;
+                            } else {
+                                unitPrice += mod.priceAdjustment || 0;
+                            }
+                        }
+                    }
+
+                    const existingItem = cart.find(item => item.cartKey === cartKey);
                     if (existingItem) {
                         set({
                             cart: cart.map(item =>
-                                item.menuItem._id === menuItem._id
+                                item.cartKey === cartKey
                                     ? { ...item, quantity: item.quantity + 1 }
                                     : item
                             )
                         });
                     } else {
                         set({
-                            cart: [...cart, { menuItem, quantity: 1, name: menuItem.name, price: menuItem.price }]
+                            cart: [...cart, {
+                                cartKey,
+                                menuItem,
+                                quantity: 1,
+                                name: menuItem.name,
+                                price: menuItem.price, // base price (snapshot)
+                                unitPrice, // z modifierji
+                                modifiers: modifiers || [],
+                            }]
                         });
                     }
                 },
 
-                removeFromCart: (menuItemId) => {
+                removeFromCart: (cartKey) => {
                     const { cart } = get();
-                    const existingItem = cart.find(item => item.menuItem._id === menuItemId);
+                    // Backward-compat: če cartKey ne matcha točno, poskusi z menuItem._id
+                    // (za stare klice iz OrderPage ki ne pošiljajo cartKey-ja).
+                    const existingItem = cart.find(item => item.cartKey === cartKey)
+                        || cart.find(item => item.menuItem._id === cartKey);
+                    const matchKey = existingItem ? existingItem.cartKey : cartKey;
 
                     if (existingItem && existingItem.quantity > 1) {
                         set({
                             cart: cart.map(item =>
-                                item.menuItem._id === menuItemId
+                                item.cartKey === matchKey
                                     ? { ...item, quantity: item.quantity - 1 }
                                     : item
                             )
                         });
                     } else {
                         set({
-                            cart: cart.filter(item => item.menuItem._id !== menuItemId)
+                            cart: cart.filter(item => item.cartKey !== matchKey)
                         });
                     }
                 },
@@ -135,6 +172,9 @@ export const useOrderStore = create(
                 resetLastOrder: () => set({ lastOrder: null }),
 
                 // --- Socket.io Integration ---
+                // Priklopi notification helperje na socket dogodke.
+                // Prejšnje stanje: notifyOrderReady/notifyQROrder/notifyPayment so bile
+                // izvožene iz notifications.js a nikoli klicane (dead code).
                 setupSocketListeners: () => {
                     const { listenersActive } = get();
                     if (listenersActive) return; // Prevent duplicate listeners
@@ -144,12 +184,12 @@ export const useOrderStore = create(
                     // Listen for new orders (e.g., placed by waitstaff, received by kitchen)
                     socket.on("newOrder", (newOrder) => {
                         const { recentOrders, stats } = get();
-                        
+
                         // Check if order already exists to prevent duplicates
                         if (!recentOrders.find(o => o._id === newOrder._id)) {
                             // Update recent orders (add to top)
                             const updatedOrders = [newOrder, ...recentOrders].slice(0, 10); // Keep max 10
-                            
+
                             // Optionally update stats broadly
                             const updatedStats = stats ? {
                                 ...stats,
@@ -158,7 +198,7 @@ export const useOrderStore = create(
                                 totalRevenue: stats.totalRevenue + newOrder.totalAmount
                             } : null;
 
-                            set({ 
+                            set({
                                 recentOrders: updatedOrders,
                                 stats: updatedStats
                             });
@@ -167,21 +207,50 @@ export const useOrderStore = create(
 
                     // Listen for order status updates (e.g., from kitchen to waitstaff)
                     socket.on("orderStatusUpdate", (updatedOrder) => {
-                        const { recentOrders, stats } = get();
-                        
+                        const { recentOrders } = get();
+
                         // Update the specific order in the list
-                        const updatedOrders = recentOrders.map(o => 
+                        const updatedOrders = recentOrders.map(o =>
                             o._id === updatedOrder._id ? updatedOrder : o
                         );
 
-                        // If status changed to Completed/Cancelled, we might want to update pending count
-                        if (stats && updatedOrder.status !== "Pending") {
-                             // This is a simplification; a true sync might require a refetch 
-                             // if moving from Pending to another state.
-                             // For a robust system, we might just refetch stats occasionally.
+                        // Desktop notification ko je order Ready (prej dead code).
+                        if (updatedOrder.status === "Ready") {
+                            notifyOrderReady(updatedOrder);
                         }
 
                         set({ recentOrders: updatedOrders });
+                    });
+
+                    // Listen for QR orders (gost naroči preko QR kode).
+                    // Prejšnje stanje: useOrderStore ni poslušal tega event-a —
+                    // cashier-jev order list ni videl QR naročil dokler ni manual refresh.
+                    socket.on("qrOrderPlaced", (qrOrder) => {
+                        const { recentOrders, stats } = get();
+                        if (!recentOrders.find(o => o._id === qrOrder._id)) {
+                            const updatedOrders = [qrOrder, ...recentOrders].slice(0, 10);
+                            const updatedStats = stats ? {
+                                ...stats,
+                                totalOrders: stats.totalOrders + 1,
+                                pendingOrders: stats.pendingOrders + 1,
+                                totalRevenue: stats.totalRevenue + (qrOrder.totalAmount || 0)
+                            } : null;
+                            set({ recentOrders: updatedOrders, stats: updatedStats });
+                        }
+                        // Desktop notification (prej dead code).
+                        notifyQROrder(qrOrder);
+                    });
+
+                    // Listen for payment updates (split payments, full payment).
+                    // Prejšnje stanje: useOrderStore ni poslušal — stats se niso refresh-ale.
+                    socket.on("paymentUpdate", (updatedOrder) => {
+                        const { recentOrders } = get();
+                        const updatedOrders = recentOrders.map(o =>
+                            o._id === updatedOrder._id ? updatedOrder : o
+                        );
+                        set({ recentOrders: updatedOrders });
+                        // Desktop notification (prej dead code).
+                        notifyPayment(updatedOrder);
                     });
 
                     set({ listenersActive: true });
@@ -191,6 +260,8 @@ export const useOrderStore = create(
                     const socket = getSocket();
                     socket.off("newOrder");
                     socket.off("orderStatusUpdate");
+                    socket.off("qrOrderPlaced");
+                    socket.off("paymentUpdate");
                     set({ listenersActive: false });
                 }
             }),

@@ -79,9 +79,10 @@
 - **NEW badge & Urgency:** New orders get a teal "NEW ✨" badge for 5 seconds; orders pending >15 minutes get amber urgency styling.
 - **Station Filter:** Filter orders by preparation station (Grill, Salad, Bar, etc.) dynamically generated from menu categories.
 
-### 3. 📱 Progressive Web App (PWA) Capability
+### 3. 📱 Offline Resilience (IndexedDB Queue)
 
-- **Offline Resilience:** Designed to handle "Internet Drops." Critical app shells are cached via Service Workers, ensuring the POS remains navigable and operational on local hardware even during downtime.
+- **Offline Resilience:** Designed to handle "Internet Drops." Orders placed at the POS terminal are persisted in an **IndexedDB-backed offline queue** (`utils/offlineQueue.js`) with exponential backoff and 409-conflict dedupe. When connectivity is restored, the queue auto-flushes. The `OfflineBanner` shows connection status and pending count.
+- **Note:** The web app is **not** a PWA (no service worker / app-shell caching). The mobile app uses a **SQLite-based** offline queue with the same semantics.
 
 ### 4. 🧪 Robust Testing & Code Quality
 
@@ -337,7 +338,7 @@ Tasty-Station-POS/
 
 ```mermaid
 graph TD
-    User((User)) -->|HTTPS| Frontend[React PWA]
+    User((User)) -->|HTTPS| Frontend[React Web App]
     Frontend -->|REST API| Backend[Express Logic]
     Frontend <-->|WebSockets| KDS[Kitchen Display System]
     Backend -->|Atomic Transaction| MongoDB[(Database)]

@@ -2,9 +2,62 @@ const mongoose = require("mongoose");
 const Order = require("../models/order.model");
 const { MenuItem } = require("../models/menu.model");
 const Client = require("../models/client.model");
+const FiscalInvoice = require("../models/fiscalInvoice.model");
+const Outlet = require("../models/outlet.model");
+const CurrencySettings = require("../models/currencySettings.model");
 const ApiError = require("../utils/ApiError");
 const { getIo } = require("../config/socket.config");
-const { notifyNewOrderPush, notifyOrderReadyPush, notifyQROrderPush } = require("../utils/pushService");
+const { notifyNewOrderPush, notifyOrderReadyPush } = require("../utils/pushService");
+const { awardPointsForOrder } = require("./loyalty.controller");
+const { confirmInvoice } = require("../utils/furs");
+const { logAction } = require("../middlewares/auditLog.middleware");
+
+/**
+ * Interni helper — sproži se, ko order preide v terminalno stanje "Completed".
+ *
+ * 1. Nagradi loyalty točke stranki (idempotentno — preveri loyaltyHistory,
+ *    da preprečimo dvojno nagrajevanje).
+ * 2. Izda fiskalni račun pri FURS (idempotentno — preveri obstoječi FiscalInvoice;
+ *    confirmInvoice samodejno no-op, če FURS_ENABLED=false).
+ *
+ * Obe operaciji sta best-effort: nikoli ne smeta zlomiti glavnega toka plačila.
+ * Vsi error-i se samo zlogirajo (non-blocking).
+ */
+const onOrderCompleted = async (order, user) => {
+    // 1. Loyalty točke (samo enkrat na order)
+    try {
+        if (order.client) {
+            const client = await Client.findById(order.client).select("loyaltyHistory");
+            const alreadyAwarded = client?.loyaltyHistory?.some(
+                (h) => h.type === "earned" && h.orderId && String(h.orderId) === String(order._id)
+            );
+            if (!alreadyAwarded) {
+                await awardPointsForOrder(order);
+            }
+        }
+    } catch (e) {
+        console.error("Loyalty award error (non-blocking):", e.message);
+    }
+
+    // 2. Fiskalni račun (samo enkrat na order)
+    try {
+        const existing = await FiscalInvoice.findOne({ order: order._id });
+        if (!existing) {
+            // Pridobi outlet: prioritetno iz uporabnika, sicer primarni outlet.
+            let outlet = null;
+            if (user?.outletId) {
+                outlet = await Outlet.findById(user.outletId);
+            }
+            if (!outlet) {
+                outlet = await Outlet.getPrimary();
+            }
+            const method = (order.paymentMethod || "cash").toLowerCase();
+            await confirmInvoice(order, outlet, method, user);
+        }
+    } catch (e) {
+        console.error("Fiscal invoice error (non-blocking):", e.message);
+    }
+};
 
 // ... (createOrder logic up to generating unique ID)
 // Create a new order
@@ -48,6 +101,13 @@ const createOrder = async (req, res, next) => {
         const finalClientId = client._id;
 
         // 2. Calculate total and validate items
+        // Pridobi CurrencySettings za tax rate + taxInclusive flag (prej hardcoded
+        // nič — totalAmount je bil bruto brez razčlenitve, FURS/zreport so morali
+        // back-calculate z hardcoded 22%).
+        const currencySettings = await CurrencySettings.getSettings();
+        const taxRate = currencySettings.taxRates?.standard || 0;
+        const taxInclusive = currencySettings.taxInclusive !== false; // default true
+
         let totalAmount = 0;
         const validItems = [];
 
@@ -58,16 +118,63 @@ const createOrder = async (req, res, next) => {
             }
 
             // Use current price from DB, not from frontend
-            const price = menuItem.price;
-            const itemTotal = price * item.quantity;
-            totalAmount += itemTotal;
+            const basePrice = menuItem.price;
+            let unitPrice = basePrice;
+
+            // === Modifikatorji — upoštevaj priceAdjustment/priceOverride iz body-ja ===
+            // (prejšnje stanje: modifikatorji ignorirani pri izračunu cene)
+            const modifiers = [];
+            if (Array.isArray(item.modifiers)) {
+                for (const mod of item.modifiers) {
+                    if (mod.priceOverride != null) {
+                        unitPrice = mod.priceOverride;
+                    } else {
+                        unitPrice += mod.priceAdjustment || 0;
+                    }
+                    modifiers.push({
+                        groupName: mod.groupName || "Modifier",
+                        modifierName: mod.modifierName || "",
+                        priceAdjustment: mod.priceAdjustment || 0,
+                        priceOverride: mod.priceOverride ?? null,
+                    });
+                }
+            }
+
+            const lineTotal = unitPrice * item.quantity;
+            totalAmount += lineTotal;
 
             validItems.push({
                 menuItem: menuItem._id,
                 name: menuItem.name,
-                price: price,
-                quantity: item.quantity
+                price: basePrice,
+                unitPrice,
+                lineTotal,
+                quantity: item.quantity,
+                modifiers,
+                course: item.course || 1,
             });
+        }
+
+        // Zaokroži na 2 decimalki (denar)
+        totalAmount = Math.round(totalAmount * 100) / 100;
+
+        // === Davčna razčlenitev ===
+        // Pri tax-inclusive (Slovenija/EUR): cene menija že vsebujejo DDV.
+        //   subtotal (neto) = totalAmount / (1 + rate/100)
+        //   taxAmount = totalAmount - subtotal
+        // Pri tax-exclusive (npr. USD): cene so brez DDV.
+        //   subtotal = totalAmount (vsota cen)
+        //   taxAmount = subtotal * rate/100
+        //   totalAmount (bruto) = subtotal + taxAmount
+        let subtotal, taxAmount, grossTotal;
+        if (taxInclusive) {
+            subtotal = Math.round((totalAmount / (1 + taxRate / 100)) * 100) / 100;
+            taxAmount = Math.round((totalAmount - subtotal) * 100) / 100;
+            grossTotal = totalAmount;
+        } else {
+            subtotal = totalAmount;
+            taxAmount = Math.round((subtotal * taxRate / 100) * 100) / 100;
+            grossTotal = Math.round((subtotal + taxAmount) * 100) / 100;
         }
 
         // 3. Generate unique Order ID
@@ -79,7 +186,12 @@ const createOrder = async (req, res, next) => {
             type,
             paymentMethod: paymentMethod || "Cash",
             items: validItems,
-            totalAmount,
+            totalAmount: grossTotal,
+            subtotal,
+            taxRate,
+            taxAmount,
+            // outletId iz osebja, ki oddaja naročilo (multi-outlet reporting)
+            outletId: req.user.outletId || null,
             client: finalClientId,
             clientName: client.name,
             clientPhone: client.phone,
@@ -89,10 +201,10 @@ const createOrder = async (req, res, next) => {
 
         await newOrder.save({ session });
 
-        // 5. Update Client History
+        // 5. Update Client History (uporabi bruto znesek)
         await Client.findByIdAndUpdate(finalClientId, {
             $push: { orders: newOrder._id },
-            $inc: { totalSpent: totalAmount },
+            $inc: { totalSpent: grossTotal },
             $set: { lastVisit: new Date() }
         }, { session });
 
@@ -116,6 +228,15 @@ const createOrder = async (req, res, next) => {
 
         // Send push notification to kitchen/cashier
         notifyNewOrderPush(populatedOrder).catch(e => console.error("Push error:", e.message));
+
+        // Audit log — order_create (non-blocking)
+        logAction(req, {
+            action: "order_create",
+            entity: "order",
+            entityId: newOrder._id,
+            description: `Order ${orderId} created for ${client.name} (${grossTotal.toFixed(2)} ${currencySettings.code})`,
+            changes: { before: null, after: { orderId, totalAmount: grossTotal, taxRate, taxAmount, outletId: newOrder.outletId } },
+        }).catch(e => console.error("Audit log error:", e.message));
 
         res.status(201).json({
             success: true,
@@ -280,6 +401,20 @@ const updateOrderStatus = async (req, res, next) => {
             notifyOrderReadyPush(order).catch(e => console.error("Push error:", e.message));
         }
 
+        // Ko je order dokončan — nagradi loyalty točke + izdaj fiskalni račun (best-effort).
+        if (status === "Completed") {
+            onOrderCompleted(order, req.user).catch(e => console.error("onOrderCompleted error:", e.message));
+        }
+
+        // Audit log — order_status_update ali order_cancel (non-blocking)
+        logAction(req, {
+            action: status === "Cancelled" ? "order_cancel" : "order_status_update",
+            entity: "order",
+            entityId: order._id,
+            description: `Order ${order.orderId} marked as ${status} by ${req.user?.name || "system"}`,
+            changes: { before: { status: order.status }, after: { status } },
+        }).catch(e => console.error("Audit log error:", e.message));
+
         res.status(200).json({ success: true, message: `Order marked as ${status}`, order });
     } catch (error) {
         next(error);
@@ -289,8 +424,18 @@ const updateOrderStatus = async (req, res, next) => {
 /**
  * POST /api/orders/:id/payment
  * Doda plačilo k order-ju (split payments).
+ *
+ * Popravek (race condition): prejšnje stanje je bilo read-modify-write brez
+ * zaklepanja — dva konkurenčna zahtevka (npr. dve blagajni istočasno) bi
+ * lahko oba prebrala order z enakim amountPaid, oba pushala plačilo in
+ * pri shranjevanju prepisala drug drugega → podvojena plačila / negativen
+ * balanceDue. Sedaj uporabljamo Mongoose optimistic locking (document
+ * versioning preko __v) + transakcijo, tako da drugi zahtevek dobi
+ * VersionMismatch error in se odbije.
  */
 const addPayment = async (req, res, next) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
     try {
         const { id } = req.params;
         const { method, amount, reference } = req.body;
@@ -302,13 +447,19 @@ const addPayment = async (req, res, next) => {
             return res.status(400).json({ success: false, message: "Amount must be greater than 0" });
         }
 
-        const order = await Order.findById(id);
-        if (!order) return res.status(404).json({ success: false, message: "Order not found" });
+        const order = await Order.findById(id).session(session);
+        if (!order) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(404).json({ success: false, message: "Order not found" });
+        }
 
         const currentPaid = (order.payments || []).reduce((sum, p) => sum + p.amount, 0);
         const remaining = order.totalAmount - currentPaid;
 
         if (amount > remaining + 0.01) {
+            await session.abortTransaction();
+            session.endSession();
             return res.status(400).json({
                 success: false,
                 message: `Payment exceeds remaining balance (€${remaining.toFixed(2)})`
@@ -329,7 +480,12 @@ const addPayment = async (req, res, next) => {
             order.status = "Completed";
         }
 
-        await order.save();
+        // save() znotraj transakcije; če je dokument medtem spremenil drug zahtevek,
+        // Mongoose sproži VersionError (optimistic locking preko __v).
+        await order.save({ session });
+
+        await session.commitTransaction();
+        session.endSession();
 
         const populatedOrder = await Order.findById(order._id)
             .populate("client", "name phone")
@@ -342,6 +498,21 @@ const addPayment = async (req, res, next) => {
             if (order.balanceDue === 0) io.emit("orderStatusUpdate", populatedOrder);
         } catch (e) { console.error("Socket error:", e); }
 
+        // Ko je račun popolnoma plačan (in order samodejno prešel v Completed) —
+        // nagradi loyalty točke + izdaj fiskalni račun (best-effort, non-blocking).
+        if (order.balanceDue === 0) {
+            onOrderCompleted(populatedOrder, req.user).catch(e => console.error("onOrderCompleted error:", e.message));
+        }
+
+        // Audit log — order_payment (non-blocking)
+        logAction(req, {
+            action: "order_payment",
+            entity: "order",
+            entityId: order._id,
+            description: `Payment ${method} ${amount.toFixed(2)} for order ${order.orderId}${order.balanceDue === 0 ? " (fully paid)" : ` (${order.balanceDue.toFixed(2)} remaining)`}`,
+            changes: { before: { amountPaid: order.amountPaid - amount }, after: { amountPaid: order.amountPaid, balanceDue: order.balanceDue } },
+        }).catch(e => console.error("Audit log error:", e.message));
+
         res.status(200).json({
             success: true,
             message: order.balanceDue === 0 ? "Payment complete — order Completed" : `€${order.balanceDue.toFixed(2)} remaining`,
@@ -349,7 +520,20 @@ const addPayment = async (req, res, next) => {
             balanceDue: order.balanceDue,
             isFullyPaid: order.balanceDue === 0
         });
-    } catch (error) { next(error); }
+    } catch (error) {
+        try { await session.abortTransaction(); } catch { /* already ended */ }
+        session.endSession();
+
+        // Optimistic locking collision — drug zahtevek je medtem spremenil order.
+        // Vrni 409 Conflict, da klient ve naj ponovno pridobi order in poskusi znova.
+        if (error && error.name === "VersionError") {
+            return res.status(409).json({
+                success: false,
+                message: "Order was modified by another transaction. Please refresh and retry.",
+            });
+        }
+        next(error);
+    }
 };
 
 /**

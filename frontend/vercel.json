@@ -7,8 +7,8 @@
   "installCommand": "npm install",
   "devCommand": "npm run dev",
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "https://tasty-station-backend.vercel.app/api/$1" },
-    { "source": "/socket.io/(.*)", "destination": "https://tasty-station-backend.vercel.app/socket.io/$1" },
+    { "source": "/api/(.*)", "destination": "https://tastystation-bg.vercel.app/api/$1" },
+    { "source": "/socket.io/(.*)", "destination": "https://tastystation-bg.vercel.app/socket.io/$1" },
     { "source": "/((?!api|socket.io).*)", "destination": "/index.html" }
   ],
   "headers": [
@@ -16,12 +16,6 @@
       "source": "/assets/(.*)",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
-      ]
-    },
-    {
-      "source": "/sw.js",
-      "headers": [
-        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
       ]
     }
   ]

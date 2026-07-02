@@ -1,9 +1,9 @@
-const mongoose = require("mongoose");
 const Client = require("../models/client.model");
 const Order = require("../models/order.model");
 const Reward = require("../models/reward.model");
 const LoyaltySettings = require("../models/loyaltySettings.model");
 const ApiError = require("../utils/ApiError");
+const { logAction } = require("../middlewares/auditLog.middleware");
 
 // === LoyaltySettings ===
 const getLoyaltySettings = async (req, res, next) => {
@@ -16,8 +16,18 @@ const getLoyaltySettings = async (req, res, next) => {
 const updateLoyaltySettings = async (req, res, next) => {
     try {
         const settings = await LoyaltySettings.getSettings();
+        const before = settings.toObject();
         Object.assign(settings, req.body);
         await settings.save();
+
+        // Audit log — loyalty_settings_update (non-blocking)
+        logAction(req, {
+            action: "loyalty_settings_update",
+            entity: "loyalty",
+            description: `Loyalty settings updated by ${req.user?.email}`,
+            changes: { before, after: settings.toObject() },
+        }).catch(e => console.error("Audit log error:", e.message));
+
         res.status(200).json({ success: true, message: "Settings updated", settings });
     } catch (error) { next(error); }
 };
@@ -93,7 +103,7 @@ const getClientLoyalty = async (req, res, next) => {
                     current: client.tier,
                     next: nextTier,
                     currentThreshold: settings.tierThresholds[client.tier.toLowerCase()],
-                    nextThreshold,
+                    nextTierThreshold,
                     progress: progressToNext,
                     amountToNext: nextTierThreshold ? Math.max(0, nextTierThreshold - client.totalSpent) : 0,
                 },
@@ -127,6 +137,15 @@ const redeemReward = async (req, res, next) => {
             timestamp: new Date()
         });
         await client.save();
+
+        // Audit log — loyalty_redeem (non-blocking)
+        logAction(req, {
+            action: "loyalty_redeem",
+            entity: "loyalty",
+            entityId: client._id,
+            description: `Client ${client.name} redeemed ${reward.name} for ${reward.pointsCost} points (new balance: ${client.loyaltyPoints})`,
+            changes: { before: { points: client.loyaltyPoints + reward.pointsCost }, after: { points: client.loyaltyPoints } },
+        }).catch(e => console.error("Audit log error:", e.message));
 
         let discount = 0;
         if (reward.type === "fixed_discount") {
@@ -169,6 +188,15 @@ const adjustPoints = async (req, res, next) => {
         });
         await client.save();
 
+        // Audit log — loyalty_adjust (non-blocking)
+        logAction(req, {
+            action: "loyalty_adjust",
+            entity: "loyalty",
+            entityId: client._id,
+            description: `Loyalty points adjusted by ${actualChange > 0 ? '+' : ''}${actualChange} for ${client.name} (new balance: ${newBalance}) by ${req.user?.email}`,
+            changes: { before: { points: client.loyaltyPoints - actualChange }, after: { points: newBalance, reason: reason || "Manual adjustment" } },
+        }).catch(e => console.error("Audit log error:", e.message));
+
         res.status(200).json({
             success: true,
             message: `Points ${actualChange > 0 ? 'added' : 'deducted'}`,
@@ -179,7 +207,7 @@ const adjustPoints = async (req, res, next) => {
 };
 
 // Internal helper — kliče se iz order.controller.js ko je order Completed
-const awardPointsForOrder = async (order, session = null) => {
+const awardPointsForOrder = async (order, _session = null) => {
     try {
         if (!order.client) return null;
         const settings = await LoyaltySettings.getSettings();

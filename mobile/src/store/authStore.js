@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import * as SecureStore from "expo-secure-store";
-import { login as apiLogin, logout as apiLogout, getStoredUser } from "../api/client";
+import { login as apiLogin, pinLogin as apiPinLogin, logout as apiLogout, getStoredUser } from "../api/client";
 
 export const useAuthStore = create((set) => ({
     user: null, isLoading: false, isAuthenticated: false,
@@ -12,6 +12,18 @@ export const useAuthStore = create((set) => ({
         set({ isLoading: true });
         try {
             const data = await apiLogin(email, password);
+            if (data.success) { set({ user: data.user, isAuthenticated: true, isLoading: false }); return true; }
+            set({ isLoading: false }); return false;
+        } catch (error) { set({ isLoading: false }); throw error; }
+    },
+    /**
+     * PIN login — hitri login za POS osebje (4-mestna koda).
+     * Prejšnje stanje: ni bil implementiran v mobilni aplikaciji.
+     */
+    loginWithPin: async (pin) => {
+        set({ isLoading: true });
+        try {
+            const data = await apiPinLogin(pin);
             if (data.success) { set({ user: data.user, isAuthenticated: true, isLoading: false }); return true; }
             set({ isLoading: false }); return false;
         } catch (error) { set({ isLoading: false }); throw error; }

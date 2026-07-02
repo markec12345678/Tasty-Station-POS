@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const Order = require("../models/order.model");
 const FiscalInvoice = require("../models/fiscalInvoice.model");
+const CurrencySettings = require("../models/currencySettings.model");
 const { protectedRoute } = require("../middlewares/auth.middleware");
 const { requirePermission } = require("../middlewares/rbac.middleware");
 const { format } = require("date-fns");
@@ -82,10 +83,21 @@ router.get("/z-report", requirePermission("reports:read"), async (req, res) => {
             ]),
         ]);
 
-        // Izračunaj DDV po stopnjah
+        // Izračunaj DDV po stopnjah.
+        // Prejšnje stanje: hardcoded `const taxRate = 22` za vse orderje.
+        // Sedaj uporabljamo order.taxRate (self-describing, nastavljen v createOrder),
+        // s fallback na CurrencySettings.taxRates.standard za stare orderje brez polja.
+        let fallbackTaxRate = 22;
+        try {
+            const settings = await CurrencySettings.getSettings();
+            fallbackTaxRate = settings.taxRates?.standard ?? 22;
+        } catch { /* ignore — use default */ }
+
         const taxBreakdown = {};
         orders.forEach(order => {
-            const taxRate = 22; // privzeta stopnja (v produkciji pridobi iz CurrencySettings)
+            const taxRate = (typeof order.taxRate === "number" && order.taxRate >= 0)
+                ? order.taxRate
+                : fallbackTaxRate;
             const base = order.totalAmount / (1 + taxRate / 100);
             const tax = order.totalAmount - base;
 

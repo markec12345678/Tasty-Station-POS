@@ -1,12 +1,8 @@
 import { io } from "socket.io-client";
+import { SOCKET_URL } from "@/config/api.config";
 
-// V lokalnem okolju (dev ali preview na localhost) uporabi lokalni backend.
-const isLocal = import.meta.env.DEV
-    || (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"));
-
-const SOCKET_URL = isLocal
-    ? "http://localhost:3000"
-    : (import.meta.env.VITE_API_BASE_URL || "https://tastystation-bg.vercel.app");
+// SOCKET_URL prihaja iz centralnega api.config.js (en vir resnice).
+// Prejšnje stanje: URL hardcodiran tukaj in se ni ujemal z axios baseURL.
 
 let socket = null;
 

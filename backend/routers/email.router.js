@@ -7,7 +7,7 @@ try {
     const emailService = require("../utils/emailService");
     sendEmail = emailService.sendEmail;
     sendToAdmins = emailService.sendToAdmins;
-} catch (e) {
+} catch (_e) {
     sendEmail = async () => ({ success: false, error: "Email service not configured" });
     sendToAdmins = async () => ({ success: false, error: "Email service not configured" });
 }

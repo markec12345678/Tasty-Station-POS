@@ -26,7 +26,7 @@ const getRates = async (req, res, next) => {
 };
 
 // POST /api/exchange-rates/refresh — admin only, ročno osveži tečaje
-const refreshRates = async (req, res, next) => {
+const refreshRates = async (req, res, _next) => {
     try {
         const response = await axios.get(ECB_URL, { timeout: 10000 });
         const data = response.data;

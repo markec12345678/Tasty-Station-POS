@@ -1,7 +1,4 @@
 const Order = require("../models/order.model");
-const { MenuItem } = require("../models/menu.model");
-const User = require("../models/user.model");
-const mongoose = require("mongoose");
 
 // Helper to get date range — podpira tudi custom startDate/endDate
 const getDateRange = (filter, customStart, customEnd) => {

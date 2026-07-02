@@ -37,7 +37,10 @@ import { can } from '@/utils/rbac'
 
 const AdminSidebar = () => {
 
-    const { logout } = useAuthStore()
+    // Popravek: prej smo destrukturirali samo { logout }, zato je bil
+    // authUser vedno undefined. Filter can(undefined, ...) je vrnil false
+    // za VSE vnose s permission → admin sidebar je bil PRAZEN.
+    const { logout, authUser } = useAuthStore()
     const location = useLocation()
 
 

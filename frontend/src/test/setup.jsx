@@ -100,6 +100,20 @@ vi.mock('framer-motion', () => ({
     AnimatePresence: ({ children }) => <>{children}</>,
 }));
 
+/**
+ * Global Mock for react-i18next
+ * t() vrne kar key (standarden i18n test pattern — testira logiko ne prevodov).
+ * Prejšnje stanje: i18n ni bil mock-an, useTranslation() je vrzela error v test env,
+ * zato so Login testi iskali "Sign In"/"Signing in..." (angleško) namesto i18n key-ev.
+ */
+vi.mock('react-i18next', () => ({
+    useTranslation: () => ({
+        t: (key) => key,
+        i18n: { language: 'sl', changeLanguage: vi.fn() },
+    }),
+    initReactI18next: { type: '3rdParty', init: vi.fn() },
+}));
+
 // Reset all mocks before each test to ensure test isolation
 beforeEach(() => {
     vi.clearAllMocks();

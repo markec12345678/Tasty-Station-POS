@@ -22,6 +22,7 @@
 
 const crypto = require("crypto");
 const FiscalInvoice = require("../models/fiscalInvoice.model");
+const CurrencySettings = require("../models/currencySettings.model");
 
 // FURS endpointi
 const FURS_ENDPOINTS = {
@@ -238,11 +239,15 @@ const sendToFURS = async (invoiceData, certPath, certPassword, testMode = true) 
  * Zgradi SOAP envelope za FURS potrjevanje računa.
  * Specifikacija: FURS SOAP v1.3 (fu.gov.si)
  *
- * @param {Object} data — { taxNumber, invoiceNumber, issueDateTime, businessUnit, cashRegister, total, zoi }
+ * @param {Object} data — { taxNumber, invoiceNumber, issueDateTime, businessUnit, cashRegister, total, zoi, taxRate }
+ * @param {Number} data.taxRate — DDV stopnja v procentih (npr. 22). Če ni podana, default 22.
  * @returns {String} XML SOAP envelope
  */
 const buildSOAPEnvelope = (data) => {
     const { taxNumber, invoiceNumber, issueDateTime, businessUnit, cashRegister, total, zoi } = data;
+    // DDV stopnja iz CurrencySettings (prej hardcoded 22% — ne-kompatibilno za znižane stopnje).
+    const taxRate = (typeof data.taxRate === "number" && data.taxRate >= 0) ? data.taxRate : 22;
+    const taxMultiplier = 1 + taxRate / 100;
 
     // Formatiraj datum za FURS (ISO 8601 z mikro-sekundami)
     const fursDate = issueDateTime.replace(/\.(\d{3})Z$/, ".$1000Z");
@@ -272,9 +277,9 @@ const buildSOAPEnvelope = (data) => {
         <PaymentAmount>${total.toFixed(2)}</PaymentAmount>
         <TaxesPerSeller>
           <VAT>
-            <TaxRate>22.00</TaxRate>
-            <TaxableAmount>${(total / 1.22).toFixed(2)}</TaxableAmount>
-            <TaxAmount>${(total - total / 1.22).toFixed(2)}</TaxAmount>
+            <TaxRate>${taxRate.toFixed(2)}</TaxRate>
+            <TaxableAmount>${(total / taxMultiplier).toFixed(2)}</TaxableAmount>
+            <TaxAmount>${(total - total / taxMultiplier).toFixed(2)}</TaxAmount>
           </VAT>
         </TaxesPerSeller>
         <OperatorTaxNumber>${taxNumber}</OperatorTaxNumber>
@@ -362,6 +367,21 @@ const confirmInvoice = async (order, outlet, paymentMethod = "cash", user = null
             return { success: false, error: "Tax number required (set on Outlet or FURS_DEFAULT_TAX_NUMBER env)" };
         }
 
+        // Pridobi DDV stopnjo: prioritetno iz order.taxRate (self-describing),
+        // sicer iz CurrencySettings.taxRates.standard. Prej hardcoded 22%.
+        let taxRate = null;
+        if (typeof order.taxRate === "number" && order.taxRate >= 0) {
+            taxRate = order.taxRate;
+        } else {
+            try {
+                const settings = await CurrencySettings.getSettings();
+                taxRate = settings.taxRates?.standard ?? 22;
+            } catch {
+                taxRate = 22; // fallback
+            }
+        }
+        const taxMultiplier = 1 + taxRate / 100;
+
         // 1. Generiraj invoiceNumber
         const invoiceNumber = await generateInvoiceNumber(outlet);
 
@@ -405,9 +425,9 @@ const confirmInvoice = async (order, outlet, paymentMethod = "cash", user = null
             console.warn("[FURS] No certificate — using random ZOI (development only)");
         }
 
-        // 4. Pošlji FURS za EOR
+        // 4. Pošlji FURS za EOR (podaj taxRate za dinamično DDV stopnjo)
         const fursResult = await sendToFURS(
-            { ...zoiParams, zoi },
+            { ...zoiParams, zoi, taxRate },
             certPath,
             certPassword,
             process.env.FURS_TEST_MODE !== "false"
@@ -416,11 +436,12 @@ const confirmInvoice = async (order, outlet, paymentMethod = "cash", user = null
         // 5. Generiraj QR vsebino
         const qrContent = generateQRContent(zoi, issueDateTime, taxNumber);
 
-        // 6. Izračunaj tax breakdown (po stopnjah DDV)
+        // 6. Izračunaj tax breakdown (po stopnjah DDV) — dinamična stopnja
+        const taxableBase = order.totalAmount / taxMultiplier;
         const taxBreakdown = [{
-            rate: 22,  // privzeta stopnja — v produkciji pridobi iz CurrencySettings.taxRates
-            base: order.totalAmount / 1.22,
-            tax: order.totalAmount - (order.totalAmount / 1.22),
+            rate: taxRate,
+            base: taxableBase,
+            tax: order.totalAmount - taxableBase,
             gross: order.totalAmount,
         }];
 
@@ -439,8 +460,8 @@ const confirmInvoice = async (order, outlet, paymentMethod = "cash", user = null
             status: fursResult.success ? "confirmed" : "failed",
             issueDateTime,
             totals: {
-                subtotal: order.totalAmount / 1.22,
-                taxAmount: order.totalAmount - (order.totalAmount / 1.22),
+                subtotal: taxableBase,
+                taxAmount: order.totalAmount - taxableBase,
                 discount: 0,
                 total: order.totalAmount,
             },

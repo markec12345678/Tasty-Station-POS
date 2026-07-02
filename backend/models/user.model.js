@@ -69,15 +69,30 @@ const userSchema = new mongoose.Schema({
 });
 
 userSchema.pre("save", async function () {
-    if (!this.isModified("password")) {
-        return;
+    if (this.isModified("password")) {
+        this.password = await bcrypt.hash(this.password, 10);
     }
-    this.password = await bcrypt.hash(this.password, 10);
+    // Hash PIN-a pri shranjevanju (prejšnje stanje: plaintext — varnostna luknja).
+    // PIN je občutljiv tudi zato, ker omogoča hitri login na POS terminalu.
+    if (this.isModified("pin") && this.pin) {
+        this.pin = await bcrypt.hash(this.pin, 10);
+    }
 });
 
 userSchema.methods.comparePassword = async function (password) {
     return await bcrypt.compare(password, this.password);
 }
+
+// Varna primerjava PIN-a (bcrypt). Ker so PIN-i hashirani, jih ne moremo
+// iskati z direktnim queryjem (findOne({ pin })) — uporabimo comparePin.
+userSchema.methods.comparePin = async function (pin) {
+    if (!this.pin || !pin) return false;
+    try {
+        return await bcrypt.compare(pin, this.pin);
+    } catch {
+        return false;
+    }
+};
 
 const User = mongoose.models.User || mongoose.model("User", userSchema);
 module.exports = User;

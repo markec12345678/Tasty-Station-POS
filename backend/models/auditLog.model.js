@@ -46,6 +46,8 @@ const auditLogSchema = new mongoose.Schema({
             "tax_create", "tax_update", "tax_delete",
             // Users
             "user_create", "user_update", "user_delete",
+            // Inventory
+            "inventory_create", "inventory_update", "inventory_delete",
             // System
             "system_error", "system_config_change",
         ],

@@ -29,15 +29,10 @@
       "output": "static",
       "favicon": "./assets/favicon.png"
     },
-    "plugins": [
-      "expo-router"
-    ],
-    "experiments": {
-      "typedRoutes": true
-    },
+    "plugins": [],
     "extra": {
       "eas": {
-        "projectId": ""
+        "projectId": "c6f0e5f2-a95a-4e6f-bd02-668fbbd060b1"
       }
     }
   }

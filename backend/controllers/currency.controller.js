@@ -1,4 +1,5 @@
 const CurrencySettings = require("../models/currencySettings.model");
+const { logAction } = require("../middlewares/auditLog.middleware");
 
 // Preddefinirane valute za hitro nastavljanje
 const PRESET_CURRENCIES = {
@@ -29,8 +30,18 @@ const getCurrencySettings = async (req, res, next) => {
 const updateCurrencySettings = async (req, res, next) => {
     try {
         const settings = await CurrencySettings.getSettings();
+        const before = settings.toObject();
         Object.assign(settings, req.body);
         await settings.save();
+
+        // Audit log — currency_update (non-blocking)
+        logAction(req, {
+            action: "currency_update",
+            entity: "currency",
+            description: `Currency settings updated by ${req.user?.email} (code: ${settings.code}, standard tax: ${settings.taxRates?.standard}%)`,
+            changes: { before: { code: before.code, symbol: before.symbol, taxInclusive: before.taxInclusive }, after: { code: settings.code, symbol: settings.symbol, taxInclusive: settings.taxInclusive } },
+        }).catch(e => console.error("Audit log error:", e.message));
+
         res.status(200).json({ success: true, message: "Currency settings updated", settings });
     } catch (error) {
         next(error);
@@ -49,9 +60,19 @@ const applyPreset = async (req, res, next) => {
             });
         }
         const settings = await CurrencySettings.getSettings();
-        const { name, ...presetData } = preset;
+        const before = settings.toObject();
+        const { name: _name, ...presetData } = preset;
         Object.assign(settings, presetData);
         await settings.save();
+
+        // Audit log — currency_preset_apply (non-blocking)
+        logAction(req, {
+            action: "currency_preset_apply",
+            entity: "currency",
+            description: `Currency switched to ${preset.name} by ${req.user?.email}`,
+            changes: { before: { code: before.code }, after: { code: settings.code } },
+        }).catch(e => console.error("Audit log error:", e.message));
+
         res.status(200).json({
             success: true,
             message: `Currency switched to ${preset.name}`,

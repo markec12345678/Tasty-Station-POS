@@ -27,10 +27,11 @@ describe('Login Page', () => {
             </MemoryRouter>
         );
 
-        // More robust queries that don't depend on specific icon/text node layouts
+        // More robust queries that don't depend on specific icon/text node layouts.
+        // i18n mock vrne key, zato iščemo i18n key-e (ne angleških prevodov).
         expect(screen.getByPlaceholderText(/name@example.com/i)).toBeInTheDocument();
         expect(screen.getByPlaceholderText(/••••••••/i)).toBeInTheDocument();
-        expect(screen.getByText(/Sign In/i)).toBeInTheDocument();
+        expect(screen.getByText(/login\.signIn/i)).toBeInTheDocument();
     });
 
     it('updates input fields on change', () => {
@@ -59,7 +60,7 @@ describe('Login Page', () => {
 
         const emailInput = screen.getByPlaceholderText(/name@example.com/i);
         const passwordInput = screen.getByPlaceholderText(/••••••••/i);
-        const submitButton = screen.getByText(/Sign In/i);
+        const submitButton = screen.getByText(/login\.signIn/i);
 
         fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
         fireEvent.change(passwordInput, { target: { value: 'password123' } });
@@ -86,9 +87,10 @@ describe('Login Page', () => {
             </MemoryRouter>
         );
 
-        expect(screen.getByText(/Signing in\.\.\./i)).toBeInTheDocument();
-        // Check the specific button that shows "Signing in..."
-        const button = screen.getByText(/Signing in\.\.\./i).closest('button');
+        // i18n mock vrne key; komponenta prikaže t('login.signingIn') ko isLoading=true.
+        expect(screen.getByText(/login\.signingIn/i)).toBeInTheDocument();
+        // Check the specific button that shows the loading text
+        const button = screen.getByText(/login\.signingIn/i).closest('button');
         expect(button).toBeDisabled();
     });
 });

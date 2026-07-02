@@ -21,6 +21,11 @@ const genrateToken = (userId, res) => {
     if (!isProduction) {
         console.log(`Token generated for user: ${userId} `);
     }
+
+    // Vrnemo token tudi v return — da ga kliči lahko vključijo v JSON odgovor
+    // za mobilne kliente (React Native), ki ne uporabljajo HttpOnly piškotkov.
+    // Web še vedno uporablja pišček; mobilna aplikacija ga pošlje kot Bearer.
+    return token;
 }
 
 module.exports = genrateToken

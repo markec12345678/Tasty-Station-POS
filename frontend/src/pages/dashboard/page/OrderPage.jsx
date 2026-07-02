@@ -18,7 +18,7 @@ import Pagination from '@/components/ui/custom-pagination';
 
 const OrderPage = () => {
     const { menu, getAllMenuItems, category: categoriesList, getAllCategories, isLoading: isMenuLoading, paginationMenu } = useMenuStore();
-    const { cart, addToCart, removeFromCart, placeOrder, lastOrder, resetLastOrder, isLoading: isOrderLoading } = useOrderStore();
+    const { cart, addToCart, removeFromCart, clearCart, placeOrder, lastOrder, resetLastOrder, isLoading: isOrderLoading } = useOrderStore();
     const { tables, getTables } = useTableStore();
     const { activeTax, getActiveTax, getTaxRate } = useTaxStore();
 
@@ -98,7 +98,11 @@ const OrderPage = () => {
             paymentMethod,
             items: cart.map(item => ({
                 menuItem: item.menuItem._id,
-                quantity: item.quantity
+                quantity: item.quantity,
+                // Vključi modifierje če obstajajo (backend createOrder jih upošteva
+                // pri izračunu unitPrice/lineTotal od koga 2 — prej ignorirani).
+                modifiers: item.modifiers || [],
+                course: item.course || 1,
             })),
             clientName: clientDetails.name,
             clientPhone: clientDetails.phone,

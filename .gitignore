@@ -8,3 +8,12 @@ interview_prep_guide.md
 interview_qa.md
 walkthrough.md
 node_modules
+
+# Environment variables — NIKOLI ne commit-aj .env datotek (vsebuje tajne)
+# .env.example datoteke so dovoljene (so template brez tajn)
+.env
+.env.local
+.env.*.local
+backend/.env
+frontend/.env
+mobile/.env

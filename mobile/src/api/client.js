@@ -1,8 +1,7 @@
 import axios from "axios";
 import * as SecureStore from "expo-secure-store";
 import * as Network from "expo-network";
-
-const API_URL = "http://localhost:3000/api";
+import { API_URL } from "./config";
 
 const api = axios.create({ baseURL: API_URL, timeout: 10000, withCredentials: true });
 
@@ -23,7 +22,33 @@ api.interceptors.response.use((r) => r, async (error) => {
 export const login = async (email, password) => {
     const res = await api.post("/users/login", { email, password });
     if (res.data.success) {
-        await SecureStore.setItemAsync("auth_token", res.data.token || "session");
+        // Popravek: prej `res.data.token || "session"` — fallback na literal "session"
+        // je bil nesmiseln (backend ne vrača tokena v body-ju, ker je prej uporabljal
+        // samo HttpOnly pišček). Sedaj backend vrača token v body-ju za mobilne kliente.
+        const token = res.data.token;
+        if (token) {
+            await SecureStore.setItemAsync("auth_token", token);
+        }
+        await SecureStore.setItemAsync("user_data", JSON.stringify(res.data.user));
+    }
+    return res.data;
+};
+
+/**
+ * PIN login — hitri login za POS osebje (4-mestna koda).
+ * Backend endpoint POST /api/users/pin-login (implementiran v user.controller.js).
+ * Vrača enak shape kot email login: { success, user, token }.
+ *
+ * Prejšnje stanje: PIN login je bil dokumentiran v backendu a NI bil implementiran
+ * v mobilni aplikaciji (samo email/password).
+ */
+export const pinLogin = async (pin) => {
+    const res = await api.post("/users/pin-login", { pin });
+    if (res.data.success) {
+        const token = res.data.token;
+        if (token) {
+            await SecureStore.setItemAsync("auth_token", token);
+        }
         await SecureStore.setItemAsync("user_data", JSON.stringify(res.data.user));
     }
     return res.data;

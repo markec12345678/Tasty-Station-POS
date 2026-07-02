@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import axios from 'axios';
+import axiosInstance from '@/axios/axiosInstace';
 
 const useChatStore = create((set, get) => ({
     isOpen: false,
@@ -17,8 +17,9 @@ const useChatStore = create((set, get) => ({
         });
 
         try {
-            // Replace with your actual backend URL if different
-            const response = await axios.post('http://localhost:3000/api/chat/message', {
+            // Popravek: prej hardcoded http://localhost:3000 — v produkciji chat ni deloval.
+            // Sedaj uporabljamo centralni axiosInstance (z baseURL + credentials + timeout).
+            const response = await axiosInstance.post('/chat/message', {
                 message,
                 context: context || window.location.pathname // Simple context: current URL
             });

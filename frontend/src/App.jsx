@@ -50,6 +50,7 @@ const ZReportPage = lazy(() => import('./pages/Admin/pages/ZReportPage'));
 
 import ChatWidget from './components/chat/ChatWidget';
 import OfflineBanner from './components/OfflineBanner';
+import ProtectedRoute from './components/ProtectedRoute';
 import { Toaster } from 'sonner';
 import { can } from './utils/rbac';
 
@@ -147,97 +148,97 @@ const App = () => {
           } />
           <Route path="/admin/menu" element={
             <Suspense fallback={<PageLoader />}>
-              <MenuManagement />
+              <ProtectedRoute permission="menu:read"><MenuManagement /></ProtectedRoute>
             </Suspense>
           } />
           <Route path="/admin/add-category" element={
             <Suspense fallback={<PageLoader />}>
-              <AddCategory />
+              <ProtectedRoute permission="menu:create"><AddCategory /></ProtectedRoute>
             </Suspense>
           } />
           <Route path="/admin/add-menu" element={
             <Suspense fallback={<PageLoader />}>
-              <AddMenu />
+              <ProtectedRoute permission="menu:create"><AddMenu /></ProtectedRoute>
             </Suspense>
           } />
           <Route path="/admin/tables" element={
             <Suspense fallback={<PageLoader />}>
-              <AdminTables />
+              <ProtectedRoute permission="tables:read"><AdminTables /></ProtectedRoute>
             </Suspense>
           } />
           <Route path="/admin/inventory" element={
             <Suspense fallback={<PageLoader />}>
-              <ManageInventory />
+              <ProtectedRoute permission="inventory:read"><ManageInventory /></ProtectedRoute>
             </Suspense>
           } />
           <Route path="/admin/reports" element={
             <Suspense fallback={<PageLoader />}>
-              <AdminReports />
+              <ProtectedRoute permission="reports:read"><AdminReports /></ProtectedRoute>
             </Suspense>
           } />
           <Route path="/admin/staff" element={
             <Suspense fallback={<PageLoader />}>
-              <StaffManagement />
+              <ProtectedRoute permission="users:read"><StaffManagement /></ProtectedRoute>
             </Suspense>
           } />
           <Route path="/admin/customer-history" element={
             <Suspense fallback={<PageLoader />}>
-              <CustomerHistory />
+              <ProtectedRoute permission="clients:read"><CustomerHistory /></ProtectedRoute>
             </Suspense>
           } />
           <Route path="/admin/backup" element={
             <Suspense fallback={<PageLoader />}>
-              <BackupRestore />
+              <ProtectedRoute permission="backup:download"><BackupRestore /></ProtectedRoute>
             </Suspense>
           } />
           <Route path="/admin/loyalty" element={
             <Suspense fallback={<PageLoader />}>
-              <LoyaltyManagement />
+              <ProtectedRoute permission="loyalty:read"><LoyaltyManagement /></ProtectedRoute>
             </Suspense>
           } />
           <Route path="/admin/audit" element={
             <Suspense fallback={<PageLoader />}>
-              <AuditLog />
+              <ProtectedRoute permission="audit:read"><AuditLog /></ProtectedRoute>
             </Suspense>
           } />
           <Route path="/admin/forecast" element={
             <Suspense fallback={<PageLoader />}>
-              <ForecastPage />
+              <ProtectedRoute permission="inventory:read"><ForecastPage /></ProtectedRoute>
             </Suspense>
           } />
           <Route path="/admin/currency" element={
             <Suspense fallback={<PageLoader />}>
-              <CurrencySettings />
+              <ProtectedRoute permission="currency:read"><CurrencySettings /></ProtectedRoute>
             </Suspense>
           } />
           <Route path="/admin/reports-dashboard" element={
             <Suspense fallback={<PageLoader />}>
-              <ReportsDashboard />
+              <ProtectedRoute permission="reports:read"><ReportsDashboard /></ProtectedRoute>
             </Suspense>
           } />
           <Route path="/admin/qr-codes" element={
             <Suspense fallback={<PageLoader />}>
-              <QRCodeGenerator />
+              <ProtectedRoute permission="tables:read"><QRCodeGenerator /></ProtectedRoute>
             </Suspense>
           } />
           <Route path="/admin/outlets" element={
             <Suspense fallback={<PageLoader />}>
-              <OutletManagement />
+              <ProtectedRoute permission="outlets:read"><OutletManagement /></ProtectedRoute>
             </Suspense>
           } />
           <Route path="/admin/fiscal" element={
             <Suspense fallback={<PageLoader />}>
-              <FiscalInvoices />
+              <ProtectedRoute permission="fiscal:read"><FiscalInvoices /></ProtectedRoute>
             </Suspense>
           } />
           <Route path="/admin/modifiers" element={
             <Suspense fallback={<PageLoader />}>
-              <ModifierManagement />
+              <ProtectedRoute permission="modifiers:read"><ModifierManagement /></ProtectedRoute>
             </Suspense>
           } />
           <Route path="/admin/z-report" element={
             <Suspense fallback={<PageLoader />}>
-              <ZReportPage />
+              <ProtectedRoute permission="reports:read"><ZReportPage /></ProtectedRoute>
             </Suspense>
           } />
         </Route>

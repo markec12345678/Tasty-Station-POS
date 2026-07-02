@@ -82,6 +82,37 @@ const orderSchema = new mongoose.Schema({
         required: true,
         min: 0
     },
+    // === Davčna razčlenitev (self-describing order) ===
+    // Prejšnje stanje: order je imel samo totalAmount; poročila (zreport) in
+    // FURS so morali back-calculate tax iz totalAmount z hardcoded 22%.
+    // Sedaj order sam nosi taxRate/taxAmount/subtotal, izračunane v createOrder
+    // glede na CurrencySettings (standard rate + taxInclusive flag).
+    taxRate: {
+        type: Number,
+        default: 0, // procent (npr. 22 = 22%)
+        min: 0,
+    },
+    taxAmount: {
+        type: Number,
+        default: 0,
+        min: 0,
+    },
+    // Neto osnova (brez DDV). Pri tax-inclusive: subtotal = totalAmount / (1 + rate/100).
+    // Pri tax-exclusive: subtotal = sum(prices), totalAmount = subtotal + taxAmount.
+    subtotal: {
+        type: Number,
+        default: 0,
+        min: 0,
+    },
+    // === Multi-outlet sync ===
+    // Outlet, na katerem je bil order ustvarjen. Pridobi se iz req.user.outletId
+    // (osebje je vezano na outlet). Potrebno za pravilno multi-outlet revenue
+    // reporting (outlet.controller.js:17 filtrira po outletId — prej vrnil 0).
+    outletId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Outlet",
+        default: null,
+    },
     // === Service Charge (avto-dodajanje servisa) ===
     // Samodejno se doda za večje skupine (npr. 10% za >6 oseb)
     serviceCharge: {
@@ -120,6 +151,8 @@ const orderSchema = new mongoose.Schema({
 
 // Compound index for optimizing order queries (e.g. fetching 'Pending' orders sorted by newest first)
 orderSchema.index({ status: 1, createdAt: -1 });
+// Index za multi-outlet revenue reporting (outlet.controller.js agregira po outletId)
+orderSchema.index({ outletId: 1, status: 1 });
 
 const Order = mongoose.models.Order || mongoose.model("Order", orderSchema);
 module.exports = Order;

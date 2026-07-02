@@ -16,6 +16,7 @@ const Tax = require("../models/tax.model");
 const Discount = require("../models/discount.model");
 const Reward = require("../models/reward.model");
 const Order = require("../models/order.model");
+const { logAction } = require("../middlewares/auditLog.middleware");
 
 // GET /api/backup — stream ZIP z JSON dump-om vseh kolekcij (admin only)
 router.get("/", protectedRoute, requirePermission("backup:stats"), async (req, res) => {
@@ -63,6 +64,14 @@ router.get("/", protectedRoute, requirePermission("backup:stats"), async (req, r
         archive.append(JSON.stringify(dump, null, 2), { name: "database.json" });
         archive.append(JSON.stringify(dump.meta, null, 2), { name: "manifest.json" });
         archive.finalize();
+
+        // Audit log — backup_download (non-blocking)
+        logAction(req, {
+            action: "backup_download",
+            entity: "backup",
+            description: `Backup downloaded by ${req.user?.email} (${dump.meta.counts.total} records)`,
+            changes: { after: dump.meta.counts },
+        }).catch(e => console.error("Audit log error:", e.message));
     } catch (error) {
         console.error("Backup error:", error);
         res.status(500).json({ success: false, message: error.message });
@@ -127,6 +136,14 @@ router.post("/restore", protectedRoute, requirePermission("backup:download"), up
             inserted,
             source: dump.meta,
         });
+
+        // Audit log — backup_restore (non-blocking)
+        logAction(req, {
+            action: "backup_restore",
+            entity: "backup",
+            description: `Backup restored by ${req.user?.email} (dropExisting: ${dropExisting}, total inserted: ${Object.values(inserted).reduce((a, b) => a + b, 0)})`,
+            changes: { after: { inserted, dropExisting } },
+        }).catch(e => console.error("Audit log error:", e.message));
     } catch (error) {
         await session.abortTransaction();
         session.endSession();
