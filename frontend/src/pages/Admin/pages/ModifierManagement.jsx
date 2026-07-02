@@ -186,6 +186,7 @@ const GroupDialog = ({ open, onOpenChange, group, onSave }) => {
 
     useEffect(() => {
         if (group) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate form from existing group
             setFormData({
                 name: group.name || "",
                 description: group.description || "",

@@ -10,7 +10,6 @@ import {
 } from 'lucide-react';
 import { useReportsStore } from '@/store/useReportsStore';
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
 
 const PERIODS = [
     { value: "daily", label: "Today" },
@@ -20,7 +19,7 @@ const PERIODS = [
 ];
 
 const ReportsDashboard = () => {
-    const { dashboard, categoryPerformance, isLoading, period, getDashboard, getCategoryPerformance } = useReportsStore();
+    const { dashboard, categoryPerformance, isLoading: _isLoading, period: _period, getDashboard, getCategoryPerformance } = useReportsStore();
     const [filter, setFilter] = useState("monthly");
     const [customStart, setCustomStart] = useState("");
     const [customEnd, setCustomEnd] = useState("");

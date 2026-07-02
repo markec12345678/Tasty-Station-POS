@@ -66,7 +66,7 @@ const FloorPlanEditor = ({ tables = [], onTableClick }) => {
             toast.success(`${payload.length} positions saved`);
             setDirty(false);
             getTables();
-        } catch (e) { toast.error("Failed to save"); }
+        } catch (_e) { toast.error("Failed to save"); }
         setSaving(false);
     };
 

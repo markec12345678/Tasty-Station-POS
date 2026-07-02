@@ -23,7 +23,7 @@ const LoyaltyManagement = () => {
     const [rewards, setRewards] = useState([]);
     const [settings, setSettings] = useState(null);
     const [clients, setClients] = useState([]);
-    const [rewardDialog, setRewardDialog] = useState({ open: false, reward: null });
+    const [_rewardDialog, setRewardDialog] = useState({ open: false, reward: null });
 
     const fetchAll = async () => {
         try {
@@ -35,9 +35,10 @@ const LoyaltyManagement = () => {
             setRewards(r.data.rewards || []);
             setSettings(s.data.settings);
             setClients(c.data.clients || c.data || []);
-        } catch (e) { console.error(e); }
+        } catch (_e) { console.error(_e); }
     };
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial fetch, runs once
     useEffect(() => { fetchAll(); }, []);
 
     const topClients = [...clients]
@@ -50,7 +51,7 @@ const LoyaltyManagement = () => {
             await axiosInstance.delete(`/loyalty/rewards/${id}`);
             toast.success("Reward deleted");
             fetchAll();
-        } catch (e) { toast.error("Failed to delete"); }
+        } catch (_e) { toast.error("Failed to delete"); }
     };
 
     return (

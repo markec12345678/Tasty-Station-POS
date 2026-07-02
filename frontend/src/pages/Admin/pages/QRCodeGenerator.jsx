@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     Card, CardContent, CardHeader, CardTitle, CardDescription
 } from "@/components/ui/card";
@@ -17,7 +17,6 @@ const QRCodeGenerator = () => {
     const [searchQuery, setSearchQuery] = useState("");
     const [activeZone, setActiveZone] = useState("All");
     const [qrDataUrls, setQrDataUrls] = useState({});  // { [tableId]: dataUrl }
-    const canvasRefs = useRef({});
 
     useEffect(() => {
         getTables();

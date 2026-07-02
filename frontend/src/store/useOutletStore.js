@@ -73,7 +73,7 @@ export const useOutletStore = create((set, get) => ({
                 get().getOutlets();
             }
             return res.data;
-        } catch (error) {
+        } catch (_error) {
             toast.error("Failed to set primary outlet");
             return { success: false };
         }

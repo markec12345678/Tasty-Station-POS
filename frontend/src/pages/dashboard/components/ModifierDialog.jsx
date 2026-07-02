@@ -30,6 +30,7 @@ const ModifierDialog = ({ open, onOpenChange, menuItem, onAddToCart }) => {
     // Reset ko se odpre z novim artiklom
     useEffect(() => {
         if (open && menuItem) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- reset state when dialog opens
             setQuantity(1);
             const initial = {};
             (menuItem.modifierGroups || []).forEach(group => {

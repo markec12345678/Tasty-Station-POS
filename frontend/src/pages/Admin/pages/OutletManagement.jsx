@@ -15,7 +15,6 @@ import {
     Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
 
 const WEEKDAYS = [
     { key: 'monday', label: 'Mon' },
@@ -284,6 +283,7 @@ const OutletDialog = ({ open, onOpenChange, outlet, onSave }) => {
 
     useEffect(() => {
         if (outlet) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate form from existing outlet
             setFormData({
                 name: outlet.name || "",
                 code: outlet.code || "",

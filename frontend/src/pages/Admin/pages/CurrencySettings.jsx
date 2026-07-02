@@ -35,7 +35,7 @@ const CurrencySettings = () => {
                 toast.success(`Updated ${res.data.count} exchange rates from ${res.data.source}`);
                 fetchRates();
             }
-        } catch (e) {
+        } catch (_e) {
             toast.error("Failed to refresh rates");
         } finally {
             setRefreshingRates(false);

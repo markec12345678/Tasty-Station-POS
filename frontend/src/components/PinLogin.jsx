@@ -16,7 +16,7 @@ import { toast } from "sonner";
  *   <PinLogin onClose={() => setShowPin(false)} />
  */
 const PinLogin = ({ onClose }) => {
-    const { login } = useAuthStore();
+    const { login: _login } = useAuthStore(); // eslint-disable-line no-unused-vars
     const [pin, setPin] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState("");

@@ -19,7 +19,7 @@ import { Link } from 'react-router-dom'
 const Navbar = () => {
     const { logout, authUser } = useAuthStore();
     const { theme, setTheme } = useThemeStore();
-    const { t, i18n } = useTranslation();
+    const { i18n } = useTranslation();
 
     return (
         <nav className="sticky top-0 z-50 w-full border-b bg-background">

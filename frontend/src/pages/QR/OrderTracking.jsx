@@ -24,7 +24,7 @@ const STATUS_LABELS = { Pending: "Prejeto", Preparing: "V pripravi", Ready: "Pri
 const OrderTracking = () => {
     const { orderId } = useParams();
     const [order, setOrder] = useState(null);
-    const [timeline, setTimeline] = useState([]);
+    const [, setTimeline] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
     const [searchId, setSearchId] = useState("");

@@ -59,7 +59,7 @@ const Login = () => {
         login(formData);
     };
 
-    const handleSocialLogin = (provider) => {
+    const _handleSocialLogin = (provider) => {
         console.log(`Social login with ${provider}`);
         // Add social login logic here
     };

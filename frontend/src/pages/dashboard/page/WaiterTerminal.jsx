@@ -27,6 +27,20 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import TableTimer from '../components/TableTimer';
 
+// Module-level constants (prej znotraj komponente — ESLint scope analysis jih ni sledil)
+const TABLE_STATUS_COLORS = {
+    Available: "bg-emerald-500/10 text-emerald-700 border-emerald-200 dark:text-emerald-400 dark:border-emerald-800/50",
+    Occupied: "bg-red-500/10 text-red-700 border-red-200 dark:text-red-400 dark:border-red-800/50",
+    Reserved: "bg-amber-500/10 text-amber-700 border-amber-200 dark:text-amber-400 dark:border-amber-800/50",
+};
+const ORDER_STATUS_COLORS = {
+    Pending: "bg-amber-500/10 text-amber-700 dark:text-amber-400",
+    Preparing: "bg-orange-500/10 text-orange-700 dark:text-orange-400",
+    Ready: "bg-cyan-500/10 text-cyan-700 dark:text-cyan-400",
+    Completed: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
+    Cancelled: "bg-red-500/10 text-red-700 dark:text-red-400",
+};
+
 const WaiterTerminal = () => {
     const { authUser } = useAuthStore();
     const { tables, getTables } = useTableStore();
@@ -89,23 +103,9 @@ const WaiterTerminal = () => {
         return recentOrders.filter(o => o.user?._id === authUser?._id).slice(0, 5);
     }, [recentOrders, authUser]);
 
-    const statusColors = {
-        Available: "bg-emerald-500/10 text-emerald-700 border-emerald-200 dark:text-emerald-400 dark:border-emerald-800/50",
-        Occupied: "bg-red-500/10 text-red-700 border-red-200 dark:text-red-400 dark:border-red-800/50",
-        Reserved: "bg-amber-500/10 text-amber-700 border-amber-200 dark:text-amber-400 dark:border-amber-800/50",
-    };
-
-    const orderStatusColors = {
-        Pending: "bg-amber-500/10 text-amber-700 dark:text-amber-400",
-        Preparing: "bg-orange-500/10 text-orange-700 dark:text-orange-400",
-        Ready: "bg-cyan-500/10 text-cyan-700 dark:text-cyan-400",
-        Completed: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
-        Cancelled: "bg-red-500/10 text-red-700 dark:text-red-400",
-    };
-
     const filters = ["All", "Mine", "Available", "Occupied", "Reserved"];
 
-    const handleQuickOrder = (tableId) => {
+    const handleQuickOrder = (_tableId) => {
         navigate('/orders');
         toast.info(`Select table and start new order`);
     };
@@ -303,7 +303,7 @@ const TableMiniCard = ({ table, isMine, onQuickOrder }) => {
                         </div>
                         <p className="text-xs text-muted-foreground">{table.zone} • {table.capacity} seats</p>
                     </div>
-                    <Badge variant="outline" className={cn("text-[10px]", statusColors[table.status])}>
+                    <Badge variant="outline" className={cn("text-[10px]", TABLE_STATUS_COLORS[table.status])}>
                         {table.status}
                     </Badge>
                 </div>

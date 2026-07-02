@@ -1,10 +1,9 @@
-import React, { useEffect, useMemo, useCallback, useState, useRef } from 'react';
+import React, { useEffect, useMemo, useCallback, useState } from 'react';
 import useKitchenStore from '@/store/useKitchenStore';
 import { Flame, Timer, CheckCircle2, ChevronRight, Bell, BellOff } from 'lucide-react';
 import KitchenColumn from '../components/kitchen/KitchenColumn';
 import { notifyNewOrder, requestPermission, isSupported } from '@/utils/notifications';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
 const KitchenDashboard = () => {
@@ -12,12 +11,11 @@ const KitchenDashboard = () => {
     const [notifEnabled, setNotifEnabled] = useState(() => {
         return isSupported() && Notification.permission === 'granted';
     });
-    const [soundEnabled, setSoundEnabled] = useState(() => {
+    const [soundEnabled] = useState(() => {
         const saved = localStorage.getItem('kds-sound');
         return saved === null ? true : saved === 'true';
     });
-    const [newOrderIds, setNewOrderIds] = useState(new Set());
-    const previousOrderIdsRef = useRef(new Set());
+    const [, setNewOrderIds] = useState(new Set());
 
     const handleRefresh = useCallback(async () => {
         await fetchKitchenOrders();
@@ -34,7 +32,7 @@ const KitchenDashboard = () => {
     }, []);
 
     // Toggle notifications
-    const handleToggleNotif = async () => {
+    const _handleToggleNotif = async () => {
         if (notifEnabled) {
             setNotifEnabled(false);
             toast.info('Desktop notifications disabled');
@@ -76,7 +74,7 @@ const KitchenDashboard = () => {
                         gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
                         osc.start();
                         osc.stop(ctx.currentTime + 0.2);
-                    } catch (e) {}
+                    } catch (_e) { /* AudioContext failed */ }
                 }
                 // Browser notification
                 if (notifEnabled) {

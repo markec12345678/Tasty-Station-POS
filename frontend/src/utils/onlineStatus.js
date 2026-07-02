@@ -47,7 +47,7 @@ export const useOnlineStatus = () => {
             try {
                 const count = await offlineQueue.getPendingCount();
                 setPendingCount(count);
-            } catch (e) {}
+            } catch { /* ignore count errors */ }
         };
         refreshCount();
         const countInterval = setInterval(refreshCount, 5000);

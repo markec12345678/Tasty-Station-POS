@@ -39,7 +39,7 @@ export const useModifierStore = create((set, get) => ({
                 get().getGroups();
             }
             return res.data;
-        } catch (error) {
+        } catch (_error) {
             toast.error("Failed to update");
             return { success: false };
         }

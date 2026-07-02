@@ -73,7 +73,7 @@ const useUserStore = create((set) => ({
 
     updatePin: async (id, pin) => {
         try {
-            const response = await axiosInstance.patch(`/users/staff/${id}/pin`, { pin });
+            await axiosInstance.patch(`/users/staff/${id}/pin`, { pin });
             set((state) => ({
                 staff: state.staff.map((s) => (s._id === id ? { ...s, pin } : s))
             }));

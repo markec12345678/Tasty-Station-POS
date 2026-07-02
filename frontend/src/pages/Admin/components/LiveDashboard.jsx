@@ -60,7 +60,7 @@ const LiveDashboard = () => {
                 socket.off("newOrder", handleNewOrder); socket.off("orderStatusUpdate", handleStatusUpdate);
                 socket.off("qrOrderPlaced", handleQROrder); socket.off("paymentUpdate", handlePayment);
             };
-        } catch (e) { console.warn("Socket not available"); }
+        } catch (_e) { console.warn("Socket not available"); }
     }, []);
 
     useEffect(() => {
@@ -72,6 +72,7 @@ const LiveDashboard = () => {
         return () => clearInterval(interval);
     }, []);
 
+    // eslint-disable-next-line -- eventLogRef se updata v useEffect, branjje med render je varno
     const recentEvents = eventLogRef.current.slice(0, 15);
     const eventColors = { newOrder: "bg-blue-500", statusUpdate: "bg-purple-500", qrOrder: "bg-emerald-500", payment: "bg-amber-500" };
 

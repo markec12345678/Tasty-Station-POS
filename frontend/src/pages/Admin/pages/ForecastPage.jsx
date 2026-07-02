@@ -26,7 +26,7 @@ const ACTION_COLORS = {
 };
 
 const ForecastPage = () => {
-    const { forecast, isLoading, period, getForecast } = useForecastStore();
+    const { forecast, isLoading, period: _period, getForecast } = useForecastStore();
     const [selectedDays, setSelectedDays] = useState(30);
 
     useEffect(() => {

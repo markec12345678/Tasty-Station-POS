@@ -169,7 +169,7 @@ const AuditLog = () => {
                         </CardHeader>
                         <CardContent>
                             <div className="space-y-2">
-                                {topActions.map((action, idx) => {
+                                {topActions.map((action, _idx) => {
                                     const max = topActions[0].count;
                                     const pct = (action.count / max) * 100;
                                     return (
