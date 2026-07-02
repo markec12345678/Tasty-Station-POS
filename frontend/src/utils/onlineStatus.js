@@ -58,6 +58,7 @@ export const useOnlineStatus = () => {
             clearInterval(healthCheck);
             clearInterval(countInterval);
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- setup runs once; retrySync is stable (useCallback)
     }, []);
 
     const retrySync = useCallback(async () => {

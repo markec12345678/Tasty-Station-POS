@@ -37,7 +37,6 @@ jobs:
       - name: Run Vitest tests
         working-directory: ./backend
         run: npm test
-        continue-on-error: true # tests are non-blocking for now
 
       - name: Upload backend test artifacts
         if: always()
@@ -71,12 +70,10 @@ jobs:
       - name: Run ESLint
         working-directory: ./frontend
         run: npm run lint
-        continue-on-error: true
 
       - name: Run Vitest tests
         working-directory: ./frontend
         run: npm test
-        continue-on-error: true
 
       - name: Build production bundle
         working-directory: ./frontend

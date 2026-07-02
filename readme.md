@@ -504,13 +504,14 @@ VITE_API_BASE_URL=http://localhost:3000
 - [x] ~~**Service Charges**: Auto-charge for large parties.~~ ✅ Done
 - [x] ~~**Course Routing**: Multi-course order routing to kitchen.~~ ✅ Done
 - [x] ~~**RBAC Permission System**: 60+ permissions, 6 roles, frontend guards.~~ ✅ Done
-- [x] ~~**PIN Quick Login**: 4-digit PIN for POS terminals.~~ ✅ Done
+- [x] ~~**PIN Quick Login**: 4-digit PIN for POS terminals (web + mobile).~~ ✅ Done
 - [x] ~~**Offline Resilience**: IndexedDB + SQLite queues with auto-sync.~~ ✅ Done
 - [x] ~~**Z-Report / X-Report**: Daily reconciliation, DDV, cash drawer, CSV.~~ ✅ Done
 - [x] ~~**React Native Mobile App**: 5 screens with order creation + offline.~~ ✅ Done
 - [x] ~~**Multi-currency Live Exchange Rates**: ECB/Frankfurter API integration.~~ ✅ Done
 - [x] ~~**Push Notifications**: Mobile FCM/APNs via Expo Push API.~~ ✅ Done
 - [x] ~~**FURS SOAP Production**: Real SOAP call with .p12 certificate + mutual TLS.~~ ✅ Done
+- [x] ~~**Security & Quality Audit**: Comprehensive backend+frontend audit — 55+ files fixed, 130/130 tests green, 0 lint errors.~~ ✅ Done
 - [ ] **Production deployment**: Vercel + Railway with real MongoDB.
 
 ---

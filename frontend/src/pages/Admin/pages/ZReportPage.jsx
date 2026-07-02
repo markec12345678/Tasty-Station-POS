@@ -22,6 +22,7 @@ const ZReportPage = () => {
     useEffect(() => {
         if (activeTab === "z") getZReport(reportDate);
         else getXReport();
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- store actions are stable (Zustand)
     }, [activeTab, reportDate]);
 
     const handleRefresh = () => {

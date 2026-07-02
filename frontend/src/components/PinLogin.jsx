@@ -16,7 +16,7 @@ import { toast } from "sonner";
  *   <PinLogin onClose={() => setShowPin(false)} />
  */
 const PinLogin = ({ onClose }) => {
-    const { login: _login } = useAuthStore(); // eslint-disable-line no-unused-vars
+    const { login: _login } = useAuthStore();
     const [pin, setPin] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState("");
@@ -63,6 +63,7 @@ const PinLogin = ({ onClose }) => {
         };
         window.addEventListener("keydown", handleKey);
         return () => window.removeEventListener("keydown", handleKey);
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- handleDigit/handleDelete/onClose sta stabilni f-nke definirane znotraj komponente
     }, [pin, isLoading]);
 
     const digits = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];

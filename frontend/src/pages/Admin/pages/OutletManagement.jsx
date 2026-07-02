@@ -283,7 +283,6 @@ const OutletDialog = ({ open, onOpenChange, outlet, onSave }) => {
 
     useEffect(() => {
         if (outlet) {
-            // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate form from existing outlet
             setFormData({
                 name: outlet.name || "",
                 code: outlet.code || "",
@@ -311,6 +310,7 @@ const OutletDialog = ({ open, onOpenChange, outlet, onSave }) => {
                 isActive: true,
             });
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- hydrate form when outlet/open changes (formData.openingHours would cause infinite loop)
     }, [outlet, open]);
 
     const handleSubmit = () => {

@@ -30,7 +30,6 @@ const ModifierDialog = ({ open, onOpenChange, menuItem, onAddToCart }) => {
     // Reset ko se odpre z novim artiklom
     useEffect(() => {
         if (open && menuItem) {
-            // eslint-disable-next-line react-hooks/set-state-in-effect -- reset state when dialog opens
             setQuantity(1);
             const initial = {};
             (menuItem.modifierGroups || []).forEach(group => {
@@ -46,6 +45,7 @@ const ModifierDialog = ({ open, onOpenChange, menuItem, onAddToCart }) => {
             });
             setSelections(initial);
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only when dialog opens with new item (menuItem._id)
     }, [open, menuItem?._id]);
 
     // Izračunaj ceno z modifikatorji
