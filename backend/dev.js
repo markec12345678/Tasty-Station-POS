@@ -63,14 +63,16 @@ const seedIfEmpty = async () => {
     // Demo način — seed vseh demo podatkov.
     console.log("🌱 Seeding demo data (development mode)…");
 
-    // Hash passwords pred insertMany (ker pre("save") hook se ne sproži)
-    const usersWithHashedPasswords = await Promise.all(
+    // Hash passwords + PINs pred insertMany (ker pre("save") hook se ne sproži).
+    // Popravek: prej smo hash-irali samo password, PIN je ostal plaintext.
+    const usersWithHashedCredentials = await Promise.all(
         data.users.map(async (u) => ({
             ...u,
-            password: await bcrypt.hash(u.password, 10)
+            password: await bcrypt.hash(u.password, 10),
+            pin: u.pin ? await bcrypt.hash(u.pin, 10) : undefined,
         }))
     );
-    await User.insertMany(usersWithHashedPasswords);
+    await User.insertMany(usersWithHashedCredentials);
     const cats = await Category.insertMany(data.categories);
 
     const menuItems = data.menuItems.map(item => {

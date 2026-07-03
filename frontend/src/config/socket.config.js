@@ -25,7 +25,7 @@ export const initSocket = () => {
                     ? JSON.parse(stored)?.state?.authUser?.outletId
                     : null;
                 socket.emit("join-outlet", outletId || null);
-            } catch (e) {
+            } catch (_e) {
                 // Napaka pri branju outlet-a — pridruži se global sobi (admin)
                 socket.emit("join-outlet", null);
             }
