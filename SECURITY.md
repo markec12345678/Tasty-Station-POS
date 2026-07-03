@@ -135,6 +135,43 @@ when connectivity is restored. After a security update, users may need to:
 2. Clear site data (DevTools → Application → Storage)
 3. Reopen the app
 
+### Git History — Committed `.env` File
+
+⚠️ **Important**: In earlier commits, `frontend/.env` was committed to the
+repository. While it contained only `VITE_API_BASE_URL=http://localhost:3000`
+(non-sensitive), this is a security anti-pattern. The file has been untracked
+(`git rm --cached`) and `.gitignore` updated, but the historical commits still
+contain it.
+
+**If you ever stored real secrets in `.env`** (JWT_SECRET, API keys, etc.),
+they may still be in git history. To fully purge:
+
+```bash
+# Option 1: git filter-repo (recommended)
+pip install git-filter-repo
+git filter-repo --path frontend/.env --invert-paths
+git push origin --force --all
+
+# Option 2: BFG Repo-Cleaner
+bfg --delete-files frontend/.env
+git reflog expire --expire=now --all
+git gc --prune=now --aggressive
+git push origin --force --all
+```
+
+**After cleanup, rotate ALL secrets** (JWT_SECRET, Cloudinary, FURS certificate,
+SMTP, Gemini API key) — assume they were compromised.
+
+### Dependency Audit
+
+Both backend and frontend pass `npm audit` with **0 vulnerabilities**.
+Re-run regularly:
+
+```bash
+cd backend && npm audit
+cd frontend && npm audit
+```
+
 ## 📚 Security Resources
 
 - [OWASP Top 10](https://owasp.org/www-project-top-ten/)
@@ -150,5 +187,5 @@ We gratefully acknowledge security researchers who have responsibly disclosed vu
 
 ---
 
-**Last updated**: June 2025
+**Last updated**: July 2025
 **Maintainer**: markec12345678
