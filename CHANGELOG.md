@@ -7,6 +7,100 @@ in projekt upošteva [Semantic Versioning](https://semver.org/lang/sl/).
 
 ---
 
+## [1.4.0] — 2025-07-03 — Test Coverage for Critical Business Logic
+
+Po v1.1.0–v1.3.0 popravkih je bila kritična poslovna logika (plačila, FURS,
+recepti, seed varnost) brez testov. Ta release zapre te vrzeli z 62 novimi
+testi v 4 novih testnih datotekah. Skupaj 147/147 testov zelenih.
+
+### 🧪 Novi testi (62 testov, 4 datoteke)
+
+- **`__tests__/furs.test.js`** (15 testov) — FURS QR koda in invoice numbering:
+  - QR vsebina mora biti 60 znakov (39+12+8+1) — prepreči regresijo na staro
+    `SI${date}${taxNumber}${zoi_hex}` format
+  - Ne sme vsebovati "SI" prefix-a ali hex ZOI (stara napačna implementacija)
+  - Decimal ZOI (39 znakov, left-pad) na začetku — BigInt pretvorba
+  - Davčna številka (8 znakov, padded) na poziciji 51-59
+  - Kontrolna števka (vsota števk mod 10) kot zadnji znak
+  - Graceful fallback za neveljaven hex ZOI
+  - Deterministični rezultati za iste vhode
+  - Invoice numbering: OUTLET_CODE-YEAR-SEQUENCE format, inkrementiranje,
+    default "TS" prefix, začetek pri 000001
+
+- **`__tests__/models/recipe.test.js`** (8 testov) — Recipe (BoM) model:
+  - Ustvarjanje veljavnega recepta s sestavinami
+  - Unique index na menuItem (en recept na menu item)
+  - `recomputeCost()` — pravilen izračun cene iz trenutnih cen inventarja
+  - Ignoriranje sestavin z manjkajočo ceno
+  - `getConsumptionForPortions(n)` — prava poraba za N porcij
+  - Izpustitev opcijskih sestavin iz napovedi
+  - Prazen rezultat za 0 ali negativne porcije
+  - Soft delete (isActive = false)
+
+- **`__tests__/api/order.payment.test.js`** (10 testov) — addPayment logika:
+  - Prvo plačilo pravilno posodobi amountPaid/balanceDue
+  - Split payments (Cash + Card) → paymentMethod = "Split"
+  - Avtomatski prehod v Completed, ko je balanceDue = 0
+  - Zavrnitev plačila, ki presega remaining balance (400)
+  - Zavrnitev neveljavnega payment method (400)
+  - Zavrnitev negativnega zneska in zneska 0 (400)
+  - 404 za neobstoječi order
+  - Boundary: plačilo točno remaining balance
+  - Floating-point tolerance (0.01) za preplačilo
+
+- **`__tests__/api/recipe.api.test.js`** (15 testov) — Recipe API CRUD:
+  - POST ustvarjanje recepta z computedCost
+  - Validacije: manjkajoč menuItem (400), prazne sestavine (400),
+    negativna količina (400), neobstoječ inventory (404), neobstoječ
+    menuItem (404)
+  - Upsert: drugi POST za isti menuItem posodobi (ne duplicira)
+  - GET seznam receptov
+  - GET recept za specifičen menuItem (200 + 404)
+  - GET recipe costing z maržo in profitom
+  - DELETE soft-delete (isActive = false)
+  - RBAC: cashier ne sme ustvarjati (403), lahko bere (200)
+
+- **`__tests__/seed.env-gating.test.js`** (12 testov) — Seed varnost:
+  - `shouldSeedDemoUsers()` logika — 9 scenarijev
+    (development, production, explicit override, priority, neveljavne vrednosti)
+  - Production bootstrap validacija — 3 scenariji
+    (manjkajoči env vars → jasna napaka, oba env vars → OK,
+    samo email brez password → napaka)
+
+### 🔧 Infrastruktura
+
+- **`__tests__/setup.db.js`** — Socket.io mock razširjen z `emitToOutlet` in
+  `emitGlobal` (v1.2.0 helperja, ki jih kontrolerji uporabljajo).
+
+### 📊 Pokritost po modulih
+
+| Modul | Prej | Sedaj | Δ |
+|---|---|---|---|
+| FURS (QR, ZOI, invoice numbering) | 0 | 15 | +15 |
+| Recipe model (BoM) | 0 | 8 | +8 |
+| Recipe API (CRUD + costing) | 0 | 15 | +15 |
+| Order payment (split, race) | 0 | 10 | +10 |
+| Seed env-gating | 0 | 12 | +12 |
+| **Skupaj** | **85** | **147** | **+62** |
+
+### 🎯 Kritična logika, ki je zdaj pokrita
+
+1. **FURS QR format** — preprečuje regresijo na napačen format (ki bi povzročil
+   davčno neveljavne račune)
+2. **addPayment** — preprečuje ponovitev race condition (double-pay)
+3. **Recipe BoM** — preprečuje napake v recipe costing in inventory forecasting
+4. **Seed env-gating** — preprečuje, da bi se demo gesla znova znašla v
+   produkcijski bazi
+5. **RBAC na recipe endpointih** — preprečuje, da bi cashier ustvarjal recepte
+
+### 🧪 Test Results
+
+- **Backend: 147/147 PASS** (0 regresij, 0 preskakovanj)
+- **Backend lint: 0 errors**
+- Duration: ~42 sekund
+
+---
+
 ## [1.3.0] — 2025-07-03 — Industry Parity (FURS QR, Recipe BoM, Redis Adapter)
 
 Raziskava spleta in primerjava z referenčnimi implementacijami

@@ -34,6 +34,8 @@ vi.mock('../config/socket.config', () => ({
             join: vi.fn(),
             leave: vi.fn()
         }),
+        emitToOutlet: vi.fn(), // v1.2.0 helper — outlet-scoped emit
+        emitGlobal: vi.fn(),   // v1.2.0 helper — global emit
         initSocket: vi.fn()
     }));
 
