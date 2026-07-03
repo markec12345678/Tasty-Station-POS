@@ -11,6 +11,7 @@ const { notifyNewOrderPush, notifyOrderReadyPush } = require("../utils/pushServi
 const { awardPointsForOrder } = require("./loyalty.controller");
 const { confirmInvoice } = require("../utils/furs");
 const { logAction } = require("../middlewares/auditLog.middleware");
+const { depleteStockForOrder, restockForCancelledOrder } = require("../utils/stockMovement");
 
 /**
  * Interni helper — sproži se, ko order preide v terminalno stanje "Completed".
@@ -208,6 +209,26 @@ const createOrder = async (req, res, next) => {
             $set: { lastVisit: new Date() }
         }, { session });
 
+        // 6. Stock depletion — avtomatsko zmanjša zalogo preko Recipe BoM.
+        // Če recept manjka za menu item, se zaloga NE spremeni (graceful).
+        // Če ni dovolj zaloge, throw ApiError → transakcija rollback (order se ne ustvari).
+        let stockResult = { movements: [], lowStockAlerts: [] };
+        try {
+            stockResult = await depleteStockForOrder(validItems, {
+                order: newOrder,
+                outlet: newOrder.outletId,
+                user: req.user,
+                session,
+            });
+        } catch (stockError) {
+            // Insufficient stock — rollback transakcije z jasno napako
+            if (stockError.code === "INSUFFICIENT_STOCK") {
+                throw new ApiError(stockError.statusCode || 409, stockError.message);
+            }
+            // Druge napake (npr. DB) — ne blokiraj orderja, samo zlogiraj
+            console.error("Stock depletion error (non-blocking):", stockError.message);
+        }
+
         // Commit transaction
         await session.commitTransaction();
         session.endSession();
@@ -229,6 +250,14 @@ const createOrder = async (req, res, next) => {
 
         // Send push notification to kitchen/cashier
         notifyNewOrderPush(populatedOrder).catch(e => console.error("Push error:", e.message));
+
+        // Low-stock alerts — če je depletion povzročil padec pod reorder level,
+        // obvesti admin/manager v realnem času preko Socket.io.
+        if (stockResult.lowStockAlerts && stockResult.lowStockAlerts.length > 0) {
+            try {
+                emitToOutlet(newOrder.outletId, "lowStockAlert", stockResult.lowStockAlerts);
+            } catch (e) { console.error("Low-stock socket error:", e); }
+        }
 
         // Audit log — order_create (non-blocking)
         logAction(req, {
@@ -404,6 +433,16 @@ const updateOrderStatus = async (req, res, next) => {
         // Ko je order dokončan — nagradi loyalty točke + izdaj fiskalni račun (best-effort).
         if (status === "Completed") {
             onOrderCompleted(order, req.user).catch(e => console.error("onOrderCompleted error:", e.message));
+        }
+
+        // Ko je order preklican — restock vse sestavine, ki so bile depletion-ane.
+        // Preveri StockMovement zabeležke za ta order in vrni (type="return").
+        if (status === "Cancelled") {
+            try {
+                await restockForCancelledOrder(order, req.user);
+            } catch (e) {
+                console.error("Restock on cancel error (non-blocking):", e.message);
+            }
         }
 
         // Audit log — order_status_update ali order_cancel (non-blocking)

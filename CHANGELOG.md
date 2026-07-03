@@ -7,6 +7,109 @@ in projekt upošteva [Semantic Versioning](https://semver.org/lang/sl/).
 
 ---
 
+## [1.6.0] — 2025-07-03 — Automatic Stock Depletion + Audit Trail
+
+Recipe BoM (v1.3.0) je omogočil recipe costing in forecasting, vendar zaloga
+ni bila avtomatsko zmanjšana ob prodaji. Ta release implementira pravi
+"stock movement" sistem (Toast POS / Apicbase parity): ob vsakem naročilu
+se zaloga avtomatsko zmanjša preko receptov, vsaka sprememba pa se zabeleži
+v audit trail. 17 novih testov, skupaj 172/172 zelenih.
+
+### 📦 Stock Movement System (Toast POS parity)
+
+- **Nov `StockMovement` model** (`backend/models/stockMovement.model.js`) —
+  audit trail vseh sprememb zaloge. 6 tipov gibanj:
+  - `order` — avtomatska poraba ob createOrder (preko Recipe BoM)
+  - `restock` — ročna dopolnitev (od dobavitelja)
+  - `waste` — odpis (zaprtež, iztek roka, poškodba)
+  - `adjustment` — ročna korekcija (inventario, popravki)
+  - `transfer` — prenos med outlet-i (multi-outlet)
+  - `return` — vračilo (preklican order)
+  - Vsako gibanje beleži: quantityBefore, quantityAfter, quantityChange,
+    costPerUnit, totalValue, order ref, menuItem ref, outlet, user, reason.
+
+- **Nov `stockMovement.js` helper** (`backend/utils/stockMovement.js`):
+  - `depleteStockForOrder(validItems, { order, outlet, user, session })` —
+    avtomatsko zmanjša zalogo ob createOrder. Za vsak order item poišče
+    Recipe (BoM) in za vsako sestavino: preveri zadostnost, zmanjša
+    Inventory.quantity, zabeleži StockMovement. Če ni dovolj zaloge →
+    throw ApiError(409) → transakcija rollback (order se ne ustvari).
+  - `restockForCancelledOrder(order, user)` — vrne zalogo ob preklicu
+    orderja. Idempotentno (double-cancel ne double-restock).
+
+- **`createOrder` integracija** — stock depletion se izvede po client history
+  update, pred commit transaction. Insufficient stock → rollback z 409.
+  Low-stock alert se emitira preko Socket.io (`lowStockAlert` event).
+
+- **`updateOrderStatus` integracija** — ob preklicu (Cancelled) se pokliče
+  `restockForCancelledOrder`, ki vrne vse sestavine nazaj v zalogo.
+
+### 🌐 Stock Movement API
+
+- **Nov `stockMovement.router.js`** z 5 endpointi:
+  - `GET /api/stock-movements` — seznam z filtri (inventory, type, order,
+    outlet, date range) + paginacija
+  - `GET /api/stock-movements/stats` — agregirana statistika (by type,
+    top consumed, totals) za dashboard
+  - `GET /api/stock-movements/inventory/:id` — celotna zgodovina za item
+    ("stock card" pogled)
+  - `POST /api/stock-movements/restock` — ročna dopolnitev (admin/manager)
+  - `POST /api/stock-movements/adjust` — ročna korekcija z obveznim reason
+
+### 🧪 Testi (17 novih)
+
+- **`__tests__/api/stockMovement.api.test.js`** (17 testov):
+  - **Stock depletion on createOrder** (7 testov):
+    - Zmanjša zalogo preko Recipe BoM (0.2kg beef + 1 bun per burger)
+    - Ustvari StockMovement audit trail (quantityBefore/After, costPerUnit)
+    - Zavrne order z 409, če ni dovolj zaloge (rollback transakcije)
+    - Brez recepta → zaloga se ne spremeni (graceful)
+    - Opcijske sestavine se ne deplete-ajo
+    - Cancel order → restock (vrne zalogo)
+    - Restock idempotentno (double-cancel ne double-restock)
+  - **Stock Movement API** (10 testov):
+    - GET seznam z filtri (type, inventory)
+    - POST restock (dopolni zalogo, posodobi costPerUnit)
+    - POST adjust (korekcija z obveznim reason)
+    - GET inventory history (stock card)
+    - GET stats (agregirana statistika)
+    - RBAC: cashier ne sme restock (403), lahko bere (200)
+    - Validacije: negativna količina (400), prekratek reason (400)
+
+### 📊 Test Coverage
+
+| Modul | Prej | Sedaj | Δ |
+|---|---|---|---|
+| Stock depletion + audit | 0 | 17 | +17 |
+| **Skupaj** | **155** | **172** | **+17** |
+
+### 🎯 Praktični vpliv
+
+1. **Pravi inventory tracking** — zaloga se samodejno posodablja ob vsaki
+   prodaji, ne več ročno. Admin vidi real-time stanje.
+2. **Insufficient stock prevention** — če stranka naroči 60 burgerjev,
+   a imamo samo 10kg beef-a, order se zavrne z jasno napako (409) namesto
+   da bi šlo v negativno zalogo.
+3. **Full audit trail** — vsaka sprememba zaloge je sledljiva (kdo, kdaj,
+   zakaj, koliko). Podporno za inventuro in waste tracking.
+4. **Cancel = restock** — preklic orderja samodejno vrne sestavine v zalogo.
+5. **Low-stock real-time alert** — admin dashboard takoj vidi, katere
+   sestavine so padle pod reorder level.
+
+### 🔍 Reference
+
+- Toast POS — "stock movements" + "recipe costing" (certus-ai comparison)
+- Apicbase — "inventory audit" + "F&B BOM" (get.apicbase.com)
+- NetSuite — "Bill of Materials" (netsuite.com)
+
+### 🧪 Test Results
+
+- **Backend: 172/172 PASS** (0 regresij, 0 preskakovanj)
+- **Backend lint: 0 errors**
+- Duration: ~50 sekund
+
+---
+
 ## [1.5.0] — 2025-07-03 — Frontend Recipe UI + Socket.io Isolation Tests
 
 v1.3.0 je dodal Recipe (BoM) backend, brez admin UI-ja. Ta release doda
