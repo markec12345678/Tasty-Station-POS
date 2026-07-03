@@ -384,7 +384,7 @@ const ManageTables = () => {
                                             <div className="space-y-1">
                                                 <Label className="text-xs">Contact Number</Label>
                                                 <Input
-                                                    placeholder="+92 XXX XXXXXXX"
+                                                    placeholder="+386 XX XXX XXX"
                                                     className="rounded-md"
                                                     value={bookingForm.contact}
                                                     onChange={e => setBookingForm({ ...bookingForm, contact: e.target.value })}
