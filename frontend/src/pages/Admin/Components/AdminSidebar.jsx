@@ -30,6 +30,7 @@ import {
     SlidersHorizontal,
     FileText,
     BookOpen,
+    History,
 } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import { cn } from '@/lib/utils'
@@ -57,6 +58,7 @@ const AdminSidebar = () => {
         { id: 'tables', label: 'Manage Tables', icon: Grid2x2Check, badge: 0, link: '/admin/tables', permission: 'tables:read' },
         { id: 'qr-codes', label: 'QR Codes', icon: QrCode, badge: 0, link: '/admin/qr-codes', permission: 'tables:read' },
         { id: 'inventory', label: 'Inventory', icon: Package, badge: 5, link: '/admin/inventory', permission: 'inventory:read' },
+        { id: 'stock-movements', label: 'Stock Movements', icon: History, badge: 0, link: '/admin/stock-movements', permission: 'inventory:read' },
         { id: 'forecast', label: 'AI Forecast', icon: Brain, badge: 0, link: '/admin/forecast', permission: 'inventory:read' },
         { id: 'staff', label: 'Staff Management', icon: ChefHat, badge: 0, link: '/admin/staff', permission: 'users:read' },
         { id: 'customer-history', label: 'Customer History', icon: Users, badge: 0, link: '/admin/customer-history', permission: 'clients:read' },

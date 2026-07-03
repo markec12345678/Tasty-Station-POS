@@ -7,6 +7,77 @@ in projekt upošteva [Semantic Versioning](https://semver.org/lang/sl/).
 
 ---
 
+## [1.7.0] — 2025-07-03 — Frontend Stock Movement UI
+
+v1.6.0 je dodal backend stock movement sistem brez admin UI-ja. Ta release
+doda poln admin UI za pregled in upravljanje stock gibanj — s čimer je cikel
+stock managementa popolnoma zaprt (backend → testi → UI). 172/172 testov
+zelenih (0 regresij).
+
+### 🎨 Frontend — Stock Movement Management UI (nova admin stran)
+
+- **Nova admin stran `StockMovementManagement.jsx`** (`/admin/stock-movements`):
+  - **Stats dashboard** (4 kartice):
+    - Total Consumed (€) — skupna vrednost porabe v obdobju
+    - Movements — skupno število gibanj
+    - Restocks — število dopolnitev
+    - Waste — število odpisov
+  - **Top 5 Consumed Items** — najbolj porabljeni inventory item-i z vrednostjo
+  - **Filtri** — type (order/restock/waste/adjustment/transfer/return),
+    inventory item, datumski range (start/end)
+  - **Movements tabela** — datum, type badge z ikono, item (klikabilen za
+    stock card), change (barvno: rdeča negativno/emerald pozitivno),
+    before/after, value (€), reason, user
+  - **Paginacija** — 50 gibanj na stran
+  - **Restock dialog** — inventory selector, quantity, cost per unit
+    (optional — posodobi ceno), reason
+  - **Adjust dialog** — inventory selector, new quantity, reason (obvezen),
+    live preview spremembe (current → new z barvno kodiranim delta)
+  - **Stock Card dialog** — klik na inventory ime odpre polno zgodovino
+    gibanj za ta item (timeline format z type badges)
+  - **RBAC**: `inventory:read` za branje, `inventory:update` za restock/adjust
+
+- **Nov `useStockMovementStore.js`** Zustand store — getMovements (z filtri
+  in paginacijo), getStats, getInventoryHistory (stock card), restock, adjust.
+
+- **AdminSidebar.jsx** — nov menu item "Stock Movements" z History ikono,
+  prikazuje se za admin/manager/cashier (permission: inventory:read).
+
+- **App.jsx** — nova lazy-loaded route `/admin/stock-movements` z
+  ProtectedRoute guard (permission: inventory:read).
+
+### 🎨 UI/UX podrobnosti
+
+- **Barvno kodiranje tipov gibanj**:
+  - Order (modra) — avtomatska poraba ob prodaji
+  - Restock (emerald) — dopolnitev od dobavitelja
+  - Waste (rdeča) — odpis (zaprtež, iztek roka)
+  - Adjustment (rumena) — ročna korekcija
+  - Transfer (vijolična) — prenos med outlet-i
+  - Return (cyan) — vračilo ob preklicu orderja
+- **Live preview v Adjust dialogu** — admin vidi trenutno zalogo in
+  izračunano spremembo (current → new z delta) pred potrditvijo
+- **Stock Card pogled** — klik na inventory ime v tabeli odpre polno
+  zgodovino tega item-a (timeline format)
+
+### 📊 Cilj
+
+Stock movement backend (v1.6.0) je bil brez UI-ja neuporaben za admin
+uporabnike. Sedaj ima admin poln nadzor:
+1. Vidi celotno zgodovino sprememb zaloge z filtri
+2. Lahko ročno dopolni zalogo (restock) z opcijsko posodobitvijo cene
+3. Lahko korigira zalogo (adjust) z obveznim reason-om za audit
+4. Vidi "stock card" za vsak inventory item (polna zgodovina)
+5. Analizira porabo (top consumed, skupna vrednost, število odpisov)
+
+### 🧪 Test Results
+
+- **Backend: 172/172 PASS** (0 regresij — frontend spremembe ne vplivajo)
+- **Frontend lint: 0 errors** (na spremenjenih datotekah)
+- Vsi novi fajli se uspešno transpilirajo
+
+---
+
 ## [1.6.0] — 2025-07-03 — Automatic Stock Depletion + Audit Trail
 
 Recipe BoM (v1.3.0) je omogočil recipe costing in forecasting, vendar zaloga
