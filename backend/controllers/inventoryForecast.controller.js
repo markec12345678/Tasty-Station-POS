@@ -1,6 +1,7 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const Inventory = require("../models/inventory.model");
 const Order = require("../models/order.model");
+const Recipe = require("../models/recipe.model");
 
 // Lazy-load Gemini — če API_KEY manjka, fallback na statistiko
 let genAI = null;
@@ -16,13 +17,27 @@ const getGeminiModel = () => {
 
 /**
  * Zbere zgodovino porabe za vsak inventory item v zadnjih N dneh.
- * Vrne: [{ itemId, name, category, totalUsed, dailyAvg, currentStock, reorderLevel, daysUntilDepletion }]
+ *
+ * Pristop (v1.3.0 — pravi recipe-based forecasting):
+ *   1. Agregiramo prodajo menu item-ov v zadnjih N dneh.
+ *   2. Za vsak menu item poiščemo Recipe (BoM) in pridobimo sestavine.
+ *   3. Porabo inventarja izračunamo: portions × recipe.ingredients[].quantity.
+ *   To je prava metoda, ki jo uporabljajo Toast POS in Apicbase.
+ *
+ * Fallback: če Recipe manjka za menu item, uporabimo staro hevristiko
+ * (tekstovno ujemanje imena ali kategorije) — da ne zlomimo obstoječe
+ * funkcionalnosti dokler se recepti ne vnesejo.
+ *
+ * Vrne: [{ inventoryId, name, category, unit, currentStock, reorderLevel,
+ *         supplier, costPerUnit, totalUsedLastNDays, dailyAverage,
+ *         weeklyForecast, daysUntilDepletion, needsReorder, consumptionSource }]
+ *   consumptionSource: "recipe" | "heuristic" (za debug/transparenco)
  */
 const getConsumptionData = async (days = 30) => {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
 
-    // Agregiraj order items v zadnjih N dneh — kateri MenuItem-i so bili naročeni
+    // 1. Agregiraj order items v zadnjih N dneh — kateri MenuItem-i so bili naročeni
     const orderItems = await Order.aggregate([
         {
             $match: {
@@ -47,23 +62,69 @@ const getConsumptionData = async (days = 30) => {
             }
         },
         { $unwind: "$menuItem" },
-        { $match: { "menuItem.costPrice": { $exists: true } } }
     ]);
 
-    // Pridobi vse inventory item-e
-    const inventory = await Inventory.find().lean();
+    // 2. Pridobi vse recepte (BoM) in zgradi map menuItemId → recipe
+    const recipes = await Recipe.find({ isActive: true })
+        .populate("ingredients.inventory", "name unit costPerUnit category quantity reorderLevel supplier")
+        .lean();
+    const recipeMap = new Map();
+    for (const r of recipes) {
+        recipeMap.set(String(r.menuItem), r);
+    }
 
-    // Za vsak inventory item, poišči povezane menu item-e (po kategoriji ali imenu)
-    // In izračunaj porabo
-    const consumptionData = inventory.map(inv => {
-        // Preprosta hevristika: poveži inventory.category z menu category
-        // V realni aplikaciji bi imeli recipe/BoM (Bill of Materials)
-        const relatedOrders = orderItems.filter(oi =>
-            oi.menuItem.name.toLowerCase().includes(inv.name.toLowerCase().split(" ")[0]) ||
-            oi.menuItem.category === inv.category
-        );
+    // 3. Za vsak menu item izračunaj porabo inventarja (preko recepta ali hevristike)
+    // Zberemo v consumptionByInventory: { inventoryId: { totalUsed, ... } }
+    const consumptionByInventory = new Map();
 
-        const totalUsed = relatedOrders.reduce((sum, oi) => sum + oi.totalQuantity, 0);
+    for (const oi of orderItems) {
+        const menuItemId = String(oi._id);
+        const recipe = recipeMap.get(menuItemId);
+
+        if (recipe && recipe.ingredients && recipe.ingredients.length > 0) {
+            // === Pravi recipe-based pristop ===
+            for (const ing of recipe.ingredients) {
+                if (ing.optional || !ing.inventory) continue;
+                const invId = String(ing.inventory._id);
+                const used = ing.quantity * oi.totalQuantity;
+
+                if (!consumptionByInventory.has(invId)) {
+                    consumptionByInventory.set(invId, {
+                        inventory: ing.inventory,
+                        totalUsed: 0,
+                        source: "recipe",
+                    });
+                }
+                consumptionByInventory.get(invId).totalUsed += used;
+            }
+        } else {
+            // === Fallback: stara hevristika (tekstovno ujemanje) ===
+            // Uporablja se kadar recept manjka. Da admin ve, naj vnese recept.
+            const inventory = await Inventory.find().lean();
+            const matchedInv = inventory.find(inv =>
+                oi.menuItem.name.toLowerCase().includes(inv.name.toLowerCase().split(" ")[0]) ||
+                oi.menuItem.category === inv.category
+            );
+            if (matchedInv) {
+                const invId = String(matchedInv._id);
+                if (!consumptionByInventory.has(invId)) {
+                    consumptionByInventory.set(invId, {
+                        inventory: matchedInv,
+                        totalUsed: 0,
+                        source: "heuristic",
+                    });
+                }
+                consumptionByInventory.get(invId).totalUsed += oi.totalQuantity;
+            }
+        }
+    }
+
+    // 4. Zberi vse inventory item-e in poveži s consumption podatki
+    const allInventory = await Inventory.find().lean();
+    const consumptionData = allInventory.map(inv => {
+        const cons = consumptionByInventory.get(String(inv._id));
+        const totalUsed = cons?.totalUsed || 0;
+        const source = cons?.source || "none";
         const dailyAvg = totalUsed / days;
 
         // Predvidena poraba v naslednjih 7 dneh
@@ -92,6 +153,9 @@ const getConsumptionData = async (days = 30) => {
             weeklyForecast: Number(weeklyForecast.toFixed(2)),
             daysUntilDepletion,
             needsReorder,
+            // "recipe" = prava BoM poraba, "heuristic" = tekstovno ujemanje,
+            // "none" = ta inventory ni bil porabljen v zadnjih N dneh
+            consumptionSource: source,
         };
     });
 

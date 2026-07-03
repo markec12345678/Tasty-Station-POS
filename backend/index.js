@@ -31,6 +31,7 @@ const emailRouter = require("./routers/email.router");
 const modifierRouter = require("./routers/modifier.router");
 const zreportRouter = require("./routers/zreport.router");
 const exchangeRateRouter = require("./routers/exchangeRate.router");
+const recipeRouter = require("./routers/recipe.router");
 const errorHandler = require("./middlewares/error.middleware");
 
 const app = express();
@@ -108,6 +109,7 @@ app.use('/api/email', emailRouter);
 app.use('/api/modifiers', modifierRouter);
 app.use('/api/z-report', zreportRouter);
 app.use('/api/exchange-rates', exchangeRateRouter);
+app.use('/api/recipes', recipeRouter);
 const chatRouter = require("./routers/chat.router");
 app.use('/api/chat', chatRouter);
 

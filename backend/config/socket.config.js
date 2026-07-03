@@ -1,9 +1,10 @@
 const { Server } = require("socket.io");
+const redisClient = require("../redis/redisClient");
 
 let io;
 
 /**
- * Socket.io konfiguracija z multi-outlet sobami.
+ * Socket.io konfiguracija z multi-outlet sobami in opcijskim Redis adapterjem.
  *
  * Prejšnje stanje: vsi klienti so prejemali VSE dogodke (io.emit). Pri
  * multi-outlet postavitvi je kuhalnica lokacije A videla naročila lokacije B.
@@ -12,9 +13,15 @@ let io;
  * JWT uporabnika) in po potrebi še `outlet:global` za admin dashboard.
  * Helper `emitToOutlet(outletId, event, data)` pošlje dogodek samo v sobo
  * tega outlet-a; `emitGlobal` pošlje v vse (za admin / multi-outlet oversight).
+ *
+ * Horizontal scaling: če je Redis povezan, se samodejno priključi
+ * @socket.io/redis-adapter. To omogoča, da več backend instanc (npr. v
+ * Kubernetes clusterju) delijo Socket.io dogodke prek Redis pub/sub.
+ * Brez adapterja dogodki ne preidejo med instancami — kuhalnica priključena
+ * na instanco B ne bi videla naročila, ki je prišlo na instanco A.
+ * Glej: https://socket.io/docs/v4/using-multiple-nodes
  */
 const initSocket = (server) => {
-    // Array of allowed origins matching the main server configuration
     const allowedOrigins = [
         "http://localhost:5173",
         "https://tastystation.vercel.app",
@@ -38,12 +45,52 @@ const initSocket = (server) => {
         }
     });
 
+    // === Redis adapter za horizontal scaling ===
+    // Če je Redis povezan in odprt, priključi adapter za multi-node broadcast.
+    try {
+        if (redisClient && redisClient.isOpen && process.env.REDIS_SKIP !== "true") {
+            let adapter;
+            try {
+                adapter = require("@socket.io/redis-adapter");
+            } catch (_e) {
+                // Paket ni nameščen — single-node fallback
+            }
+            if (adapter) {
+                const { createClient } = require("redis");
+                // Uporabimo ločena pub/sub klienta (adapter to zahteva)
+                const redisUrl = process.env.REDIS_URL || null;
+                const pubClient = createClient(redisUrl ? { url: redisUrl } : {
+                    socket: {
+                        host: process.env.REDIS_HOST,
+                        port: process.env.REDIS_PORT ? parseInt(process.env.REDIS_PORT) : 6379,
+                    },
+                    username: process.env.REDIS_USERNAME,
+                    password: process.env.REDIS_PASSWORD,
+                });
+                const subClient = pubClient.duplicate();
+                Promise.all([pubClient.connect(), subClient.connect()])
+                    .then(() => {
+                        io.adapter(adapter.createAdapter(pubClient, subClient));
+                        console.log("Socket.io: Redis adapter attached (multi-node ready).");
+                    })
+                    .catch((err) => {
+                        console.warn("Socket.io: Redis adapter failed (single-node):", err.message);
+                    });
+            } else {
+                console.log("Socket.io: @socket.io/redis-adapter not installed — single-node mode.");
+            }
+        } else {
+            console.log("Socket.io: Redis not connected — single-node mode.");
+        }
+    } catch (e) {
+        console.log("Socket.io: Redis adapter setup error (single-node mode):", e.message);
+    }
+
     console.log("Socket.io initialized (with per-outlet rooms).");
 
     io.on("connection", (socket) => {
         console.log(`Client connected: ${socket.id}`);
 
-        // Splošni room join (backward-compat s staro uporabo "join-room")
         socket.on("join-room", (room) => {
             if (typeof room !== "string" || !room) return;
             socket.join(room);
@@ -56,9 +103,6 @@ const initSocket = (server) => {
             console.log(`Socket ${socket.id} left room ${room}`);
         });
 
-        // Specifičen join za outlet sobo — frontend ga kliče ob avtentikaciji.
-        // Pošlje se `outletId` (string ObjectId ali null). Če je null, se
-        // pridruži `outlet:global` (admin dashboard, ki vidi vse outlete).
         socket.on("join-outlet", (outletId) => {
             const room = outletId ? `outlet:${outletId}` : "outlet:global";
             socket.join(room);

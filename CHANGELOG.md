@@ -7,6 +7,82 @@ in projekt upošteva [Semantic Versioning](https://semver.org/lang/sl/).
 
 ---
 
+## [1.3.0] — 2025-07-03 — Industry Parity (FURS QR, Recipe BoM, Redis Adapter)
+
+Raziskava spleta in primerjava z referenčnimi implementacijami
+(bostjanpisler/node-furs-fiscal-verification, Toast POS, Apicbase) je
+razkrila tri kritične vrzeli. Vse tri so sedaj zaprte. 8 datotek spremenjenih,
+2 novi datoteki.
+
+### 💰 Financial Integrity (FURS) — Kritični popravki
+
+- **FURS QR koda — popolnoma napačen format popravljen.** Prejšnja
+  implementacija `generateQRContent` je generirala `SI${date}${taxNumber}${zoi_hex}`
+  — to NI skladno s FURS tehnično specifikacijo v1.6. Pravilen format je:
+  `ZOI_decimal(39, left-pad) + YYMMDDHHmmss(12) + TaxNumber(8) + ControlDigit(1) = 60 znakov`.
+  Reference: bostjanpisler/node-furs-fiscal-verification, FURS uradna specifikacija.
+  Stare QR kode ne bi bile berljive z uradno FURS mobilno aplikacijo za
+  preverjanje računov. Sedaj: BigInt pretvorba hex→decimal, padding na 39,
+  vsota števk mod 10 za kontrolno števko. Skupna dolžina vedno 60 znakov.
+
+### 🍔 Recipe / Bill of Materials (Toast POS parity)
+
+- **Nov `Recipe` model** (`backend/models/recipe.model.js`) — povezuje MenuItem
+  z Inventory postavkami s količinami (npr. "Cheeseburger" → 200g beef, 1 bun,
+  1 cheese slice, 10g lettuce). To je prava metoda, ki jo uporablja Toast POS
+  ("recipe costing") in Apicbase (F&B BOM).
+  - `recomputeCost()` — preračuna ceno recepta iz trenutnih cen inventarja.
+  - `getConsumptionForPortions(n)` — vrne pričakovan porabo za n porcij.
+- **Nov `recipe.router.js`** — CRUD endpointi:
+  - `GET /api/recipes` — seznam s populate
+  - `GET /api/recipes/:menuItemId` — recept za specifičen menu item
+  - `POST /api/recipes` — upsert (en recept na menu item)
+  - `DELETE /api/recipes/:id` — soft delete
+  - `GET /api/recipes/:menuItemId/cost` — recipe costing (computedCost,
+    salePrice, grossProfit, marginPercent, sestavine z lineCost)
+- **`inventoryForecast.controller` popolnoma prenovljen** — namesto naivnega
+  tekstovnega ujemanja (menuItem.name vsebuje prvo besedo inventory.name) sedaj
+  uporablja Recipe BoM za pravo izračunavanje porabe. Vsak inventory item
+  dobi `consumptionSource: "recipe" | "heuristic" | "none"` za transparentnost
+  (admin vidi, katere item-e pokriva pravi recept in katere še vedno hevristika).
+  Fallback na hevristiko ostaja za menu item-e brez recepta.
+
+### 📡 Socket.io Horizontal Scaling
+
+- **Redis adapter** (`@socket.io/redis-adapter`) — samodejno se priključi, če
+  je Redis povezan. Omogoča multi-node broadcast: več backend instanc (npr.
+  Kubernetes cluster) delijo Socket.io dogodke prek Redis pub/sub. Brez
+  adapterja dogodki ne preidejo med instancami (kuhalnica na instanci B ne bi
+  videla naročila, ki je prišlo na instanco A). Reference: Socket.io docs
+  "Using multiple nodes", Ably "Scaling Socket.IO in production".
+  - Graceful fallback: če Redis ni povezan ali paket ni nameščen, deluje
+    single-node (backward-compat).
+  - Ločena pub/sub klienta (adapter zahteva dve povezavi).
+
+### 📚 Documentation
+
+- **`.env.example`** — dodan `@socket.io/redis-adapter` v devDependencies.
+- **CHANGELOG** — v1.3.0 vnos s polno sledljivostjo in referencami.
+
+### 🧪 Tests
+
+- 85/85 backend testov še vedno zelenih (0 regresij). Nov Recipe model in
+  router sta additive — ne vplivata na obstoječe teste. FURS QR popravek
+  vpliva samo na `fiscalQR` polje v FiscalInvoice (testi ne preverjajo
+  vsebine QR kode, samo obstoj).
+
+### 🔍 Research References
+
+- `bostjanpisler/node-furs-fiscal-verification` — slovenska open-source FURS
+  knjižnica, referenca za pravi ZOI/QR format.
+- FURS uradna tehnična specifikacija v1.6 (edavki.durs.si).
+- Socket.io docs v4 — "Using multiple nodes" (Redis adapter pattern).
+- Toast POS — "recipe costing and vendor management" (certus-ai comparison).
+- Apicbase — "F&B Bills of Materials" (get.apicbase.com).
+- Ably Realtime — "What it really takes to scale Socket.IO in production".
+
+---
+
 ## [1.2.0] — 2025-07-02 — Multi-Outlet Isolation, FURS Hardening, Seed Safety
 
 Nadaljevanje varnostnega in arhitekturnega audit-a. Fokus na pravilnosti

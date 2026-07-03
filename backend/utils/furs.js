@@ -71,32 +71,73 @@ const generateZOI = (params, privateKey) => {
 };
 
 /**
- * Generira vsebino QR kode za FURS (pravilno formatirana).
+ * Generira vsebino QR kode za FURS (pravilno formatirana po specifikaciji).
  *
- * Format (FURS specifikacija):
- *   ZOI + issueDateTime v YYYYMMDDHHmmssSSS + taxNumber + ZOI, ki je base64 encoded
+ * Format (FURS tehnična specifikacija v1.6 — glej referenčno impl
+ * bostjanpisler/node-furs-fiscal-verification):
  *
- * @param {String} zoi - 32-char hex ZOI
- * @param {Date} issueDateTime
- * @param {String} taxNumber
- * @returns {String} vsebina za QR kodo
+ *   ZOI_decimal(39, left-padded z 0) + YYMMDDHHmmss(12) + TaxNumber(8) + ControlDigit(1)
+ *
+ * Kjer:
+ *   - ZOI_decimal = hex ZOI (32 znakov) pretvorjen v decimalno število, left-pad
+ *     z ničlami na 39 znakov.
+ *   - YYMMDDHHmmss = datum izdaje (leto2+mesc+dan+ura+min+sek) = 12 znakov.
+ *   - TaxNumber = davčna številka zavezanca (8 znakov).
+ *   - ControlDigit = vsota vseh prejšnjih števk mod 10.
+ *
+ * Skupna dolžina: 39 + 12 + 8 + 1 = 60 znakov.
+ *
+ * Prejšnja (napačna) implementacija je generirala `SI${date}${taxNumber}${zoi_hex}`
+ * — to NI skladno s FURS specifikacijo (uporabljala je hex ZOI namesto decimal,
+ * imela "SI" prefix, in manjkala je kontrolna števka). QR kode, generirane s
+ * staro implementacijo, ne bi bile berljive z uradno FURS mobilno aplikacijo.
+ *
+ * @param {String} zoi - 32-char hex ZOI (iz generateZOI)
+ * @param {Date|String} issueDateTime - datum izdaje
+ * @param {String} taxNumber - davčna številka (8 števk)
+ * @returns {String} 60-znakovna vsebina za FURS QR kodo
  */
 const generateQRContent = (zoi, issueDateTime, taxNumber) => {
     const dt = new Date(issueDateTime);
     const pad = (n, len = 2) => String(n).padStart(len, "0");
+
+    // 1. ZOI iz hex (32 znakov) v decimalno število, padded na 39 znakov.
+    // BigInt je potreben ker 128-bitni hex ne gre v Number.
+    let zoiDecimal;
+    try {
+        zoiDecimal = BigInt("0x" + zoi).toString(10);
+    } catch (e) {
+        // Fallback če zoi ni veljaven hex (ne bi se smelo zgoditi)
+        console.error("[FURS] Invalid ZOI for QR generation:", zoi, e.message);
+        zoiDecimal = "0";
+    }
+    while (zoiDecimal.length < 39) zoiDecimal = "0" + zoiDecimal;
+
+    // 2. Datum v formatu YYMMDDHHmmss (12 znakov)
     const formattedDate =
-        dt.getFullYear().toString() +
+        String(dt.getFullYear()).slice(-2) +
         pad(dt.getMonth() + 1) +
         pad(dt.getDate()) +
         pad(dt.getHours()) +
         pad(dt.getMinutes()) +
-        pad(dt.getSeconds()) +
-        pad(dt.getMilliseconds(), 3);
+        pad(dt.getSeconds());
 
-    // Format: ZOI(date)(taxNumber)(controlDigit)(zoi)
-    // V redu: date(10)taxNumber(8)controlDigit(1)zoi(32)
-    const content = `SI${formattedDate}${taxNumber}${zoi}`;
-    return content;
+    // 3. Davčna številka (8 znakov — če je krajša, levo pad z 0)
+    const taxNum = String(taxNumber).padStart(8, "0").slice(-8);
+
+    // 4. Kontrolna števka: vsota vseh števk mod 10
+    const combined = zoiDecimal + formattedDate + taxNum;
+    let controlNum = 0;
+    for (let i = 0; i < combined.length; i++) {
+        const ch = combined[i];
+        if (ch >= "0" && ch <= "9") {
+            controlNum += parseInt(ch, 10);
+        }
+    }
+    controlNum %= 10;
+
+    // 5. Sestavi končno vsebino: ZOI_dec(39) + datum(12) + tax(8) + control(1) = 60
+    return zoiDecimal + formattedDate + taxNum + controlNum;
 };
 
 /**
