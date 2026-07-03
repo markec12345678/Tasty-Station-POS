@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useStockMovementStore } from '@/store/useStockMovementStore';
 import { useInventoryStore } from '@/store/useInventoryStore';
+import { useOutletStore } from '@/store/useOutletStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useCurrencyStore } from '@/store/useCurrencyStore';
 import { can } from '@/utils/rbac';
@@ -41,15 +42,19 @@ const StockMovementManagement = () => {
         getMovements, getStats, restock, adjust,
     } = useStockMovementStore();
     const { items: inventoryItems, fetchInventory } = useInventoryStore();
+    const { outlets, getOutlets } = useOutletStore();
     const { authUser } = useAuthStore();
     // Popravek: prej hardcoded € — sedaj uporabljamo useCurrencyStore.format()
     const format = useCurrencyStore((s) => s.format);
     // RBAC: only inventory:update roles can restock/adjust stock
     const canUpdateStock = can(authUser?.role, 'inventory:update');
+    // Outlets: samo uporabniki z outlets:read vidijo outlet filter (admin, manager)
+    const canViewOutlets = can(authUser?.role, 'outlets:read');
 
     const [filters, setFilters] = useState({
         type: 'all',
         inventory: 'all',
+        outlet: 'all',
         startDate: '',
         endDate: '',
         page: 1,
@@ -60,12 +65,14 @@ const StockMovementManagement = () => {
 
     useEffect(() => {
         fetchInventory(1, 100);
-    }, [fetchInventory]);
+        if (canViewOutlets) getOutlets();
+    }, [fetchInventory, getOutlets, canViewOutlets]);
 
     useEffect(() => {
         const params = {};
         if (filters.type !== 'all') params.type = filters.type;
         if (filters.inventory !== 'all') params.inventory = filters.inventory;
+        if (filters.outlet !== 'all') params.outlet = filters.outlet;
         if (filters.startDate) params.startDate = filters.startDate;
         if (filters.endDate) params.endDate = filters.endDate;
         params.page = filters.page;
@@ -78,7 +85,7 @@ const StockMovementManagement = () => {
     };
 
     const handleResetFilters = () => {
-        setFilters({ type: 'all', inventory: 'all', startDate: '', endDate: '', page: 1 });
+        setFilters({ type: 'all', inventory: 'all', outlet: 'all', startDate: '', endDate: '', page: 1 });
     };
 
     // === Stats prikaz ===
@@ -216,6 +223,18 @@ const StockMovementManagement = () => {
                                     ))}
                                 </SelectContent>
                             </Select>
+
+                            {canViewOutlets && outlets.length > 0 && (
+                            <Select value={filters.outlet} onValueChange={(v) => handleFilterChange('outlet', v)}>
+                                <SelectTrigger className="w-40"><SelectValue placeholder="Outlet" /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Outlets</SelectItem>
+                                    {outlets.map(o => (
+                                        <SelectItem key={o._id} value={o._id}>{o.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            )}
 
                             <Input
                                 type="date"
