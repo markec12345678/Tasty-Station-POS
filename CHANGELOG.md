@@ -7,6 +7,78 @@ in projekt upošteva [Semantic Versioning](https://semver.org/lang/sl/).
 
 ---
 
+## [1.5.0] — 2025-07-03 — Frontend Recipe UI + Socket.io Isolation Tests
+
+v1.3.0 je dodal Recipe (BoM) backend, brez admin UI-ja. Ta release doda
+poln admin UI za upravljanje receptov + 8 novih testov za Socket.io outlet
+izolacijo. Skupaj 155/155 testov zelenih.
+
+### 🎨 Frontend — Recipe Management UI (nova admin stran)
+
+- **Nova admin stran `RecipeManagement.jsx`** (`/admin/recipes`) — poln CRUD
+  UI za recepte z:
+  - **Stats dashboard**: skupno število receptov, povprečna cena, povprečna
+    marža, skupno število sestavin
+  - **Iskalna vrstica** — filter po imenu menu item-a
+  - **Seznam receptov** — vsak recept prikazuje: menu item (sliko + ime),
+    število sestavin, prep time, badge-za prve 4 sestavine, cost/price/margin
+    z barvno kodiranjem (zelena ≥70%, rumena ≥50%, rdeča <50%)
+  - **Create/Edit dialog** — menu item selector, dinamična lista sestavin
+    (add/remove), inventory dropdown s prikazom cene, quantity, unit, optional
+    checkbox, instructions textarea, prep time input
+  - **Costing dialog** — detailed breakdown: computed cost, sale price, gross
+    profit, margin %, per-ingredient line cost
+  - **Info banner** — razlaga, zakaj so recepti pomembni (AI forecasting +
+    recipe costing)
+  - **RBAC**: uporablja `menu:read` permission (admin + manager)
+
+- **Nov `useRecipeStore.js`** Zustand store — getRecipes, getRecipeByMenuItem,
+  saveRecipe (upsert), deleteRecipe (soft), getCosting.
+
+- **AdminSidebar.jsx** — nov menu item "Recipes (BoM)" z BookOpen ikono,
+  prikazuje se za admin/manager (permission: menu:read).
+
+- **App.jsx** — nova lazy-loaded route `/admin/recipes` z ProtectedRoute
+  guard (permission: menu:read).
+
+### 🧪 Backend — Socket.io Outlet Isolation Tests (8 novih testov)
+
+- **`__tests__/socket.outlet-isolation.test.js`** — integration testi za
+  `emitToOutlet` helper (v1.2.0):
+  - Pošiljanje dogodka v pravo outlet sobo
+  - Vedno pošlje tudi v `outlet:global` (admin dashboard)
+  - Drug outlet NE prejme dogodka (izolacija)
+  - Null/undefined outletId → global soba (QR naročila)
+  - Podpora za vse event tipe (newOrder, paymentUpdate, orderStatusUpdate,
+    courseSent)
+  - No-crash, ko io ni inicializiran
+  - Deep equality payload preverjanje
+
+### 📊 Test Coverage
+
+| Modul | Prej | Sedaj | Δ |
+|---|---|---|---|
+| Socket.io outlet isolation | 0 | 8 | +8 |
+| **Skupaj** | **147** | **155** | **+8** |
+
+### 🎯 Cilj
+
+Recipe backend (v1.3.0) je bil brez UI-ja neuporaben za admin uporabnike.
+Sedaj ima admin poln nadzor nad recepti:
+1. Ustvari/uredi recept z dinamično listo sestavin
+2. Vidi real-time costing (cost, price, profit, margin)
+3. Razume, katere menu item-e pokriva pravi recept (consumptionSource)
+4. AI inventory forecasting sedaj dejansko deluje, ko so recepti vnešeni
+
+### 🧪 Test Results
+
+- **Backend: 155/155 PASS** (0 regresij, 0 preskakovanj)
+- **Backend lint: 0 errors**
+- **Frontend lint: 0 errors** (na spremenjenih datotekah)
+- Duration: ~45 sekund
+
+---
+
 ## [1.4.0] — 2025-07-03 — Test Coverage for Critical Business Logic
 
 Po v1.1.0–v1.3.0 popravkih je bila kritična poslovna logika (plačila, FURS,

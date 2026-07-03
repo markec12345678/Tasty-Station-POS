@@ -46,6 +46,7 @@ const QRCodeGenerator = lazy(() => import('./pages/Admin/pages/QRCodeGenerator')
 const OutletManagement = lazy(() => import('./pages/Admin/pages/OutletManagement'));
 const FiscalInvoices = lazy(() => import('./pages/Admin/pages/FiscalInvoices'));
 const ModifierManagement = lazy(() => import('./pages/Admin/pages/ModifierManagement'));
+const RecipeManagement = lazy(() => import('./pages/Admin/pages/RecipeManagement'));
 const ZReportPage = lazy(() => import('./pages/Admin/pages/ZReportPage'));
 
 import ChatWidget from './components/chat/ChatWidget';
@@ -234,6 +235,11 @@ const App = () => {
           <Route path="/admin/modifiers" element={
             <Suspense fallback={<PageLoader />}>
               <ProtectedRoute permission="modifiers:read"><ModifierManagement /></ProtectedRoute>
+            </Suspense>
+          } />
+          <Route path="/admin/recipes" element={
+            <Suspense fallback={<PageLoader />}>
+              <ProtectedRoute permission="menu:read"><RecipeManagement /></ProtectedRoute>
             </Suspense>
           } />
           <Route path="/admin/z-report" element={

@@ -29,6 +29,7 @@ import {
     Receipt,
     SlidersHorizontal,
     FileText,
+    BookOpen,
 } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import { cn } from '@/lib/utils'
@@ -52,6 +53,7 @@ const AdminSidebar = () => {
         { id: 'z-report', label: 'Z-Report / X-Report', icon: FileText, badge: 0, link: '/admin/z-report', permission: 'reports:read' },
         { id: 'menu', label: 'Menu', icon: ShoppingCart, badge: 3, link: '/admin/menu', permission: 'menu:read' },
         { id: 'modifiers', label: 'Modifiers', icon: SlidersHorizontal, badge: 0, link: '/admin/modifiers', permission: 'modifiers:read' },
+        { id: 'recipes', label: 'Recipes (BoM)', icon: BookOpen, badge: 0, link: '/admin/recipes', permission: 'menu:read' },
         { id: 'tables', label: 'Manage Tables', icon: Grid2x2Check, badge: 0, link: '/admin/tables', permission: 'tables:read' },
         { id: 'qr-codes', label: 'QR Codes', icon: QrCode, badge: 0, link: '/admin/qr-codes', permission: 'tables:read' },
         { id: 'inventory', label: 'Inventory', icon: Package, badge: 5, link: '/admin/inventory', permission: 'inventory:read' },
