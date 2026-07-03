@@ -18,6 +18,9 @@ import {
 import { useRecipeStore } from '@/store/useRecipeStore';
 import { useMenuStore } from '@/store/useMenuStore';
 import { useInventoryStore } from '@/store/useInventoryStore';
+import { useAuthStore } from '@/store/useAuthStore';
+import { useCurrencyStore } from '@/store/useCurrencyStore';
+import { can } from '@/utils/rbac';
 import {
     Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription
 } from "@/components/ui/dialog";
@@ -35,6 +38,13 @@ const RecipeManagement = () => {
     const { recipes, isLoading, getRecipes, saveRecipe, deleteRecipe } = useRecipeStore();
     const { menu, getAllMenuItems } = useMenuStore();
     const { items: inventoryItems, fetchInventory } = useInventoryStore();
+    const { authUser } = useAuthStore();
+    // Popravek: prej hardcoded € — sedaj uporabljamo useCurrencyStore.format()
+    const format = useCurrencyStore((s) => s.format);
+    // RBAC: only menu:create/update/delete roles can manage recipes
+    const canCreate = can(authUser?.role, 'menu:create');
+    const canUpdate = can(authUser?.role, 'menu:update');
+    const canDelete = can(authUser?.role, 'menu:delete');
 
     const [dialogOpen, setDialogOpen] = useState(false);
     const [editingRecipe, setEditingRecipe] = useState(null);
@@ -164,9 +174,11 @@ const RecipeManagement = () => {
                             Upravljaj recepte (Bill of Materials) za recipe costing in AI inventory forecasting.
                         </p>
                     </div>
+                    {canCreate && (
                     <Button onClick={handleAdd}>
                         <Plus className="size-4 mr-2" /> New Recipe
                     </Button>
+                    )}
                 </div>
 
                 {/* Stats */}
@@ -181,7 +193,7 @@ const RecipeManagement = () => {
                         <div className="size-10 rounded-lg bg-emerald-500/10 flex items-center justify-center">
                             <DollarSign className="size-5 text-emerald-500" />
                         </div>
-                        <div><p className="text-xs text-muted-foreground uppercase">Avg Cost</p><p className="text-2xl font-bold">€{avgCost}</p></div>
+                        <div><p className="text-xs text-muted-foreground uppercase">Avg Cost</p><p className="text-2xl font-bold">{format(parseFloat(avgCost))}</p></div>
                     </CardContent></Card>
                     <Card><CardContent className="p-4 flex items-center gap-3">
                         <div className="size-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
@@ -220,7 +232,7 @@ const RecipeManagement = () => {
                         <p className="text-muted-foreground mb-4">
                             {search ? 'No recipes match your search.' : 'No recipes yet. Create your first recipe to enable AI inventory forecasting.'}
                         </p>
-                        {!search && (
+                        {!search && canCreate && (
                             <Button onClick={handleAdd}><Plus className="size-4 mr-2" /> Create Recipe</Button>
                         )}
                     </CardContent></Card>
@@ -266,11 +278,11 @@ const RecipeManagement = () => {
                                             <div className="flex items-center gap-4 flex-wrap">
                                                 <div className="text-right">
                                                     <p className="text-xs text-muted-foreground">Cost</p>
-                                                    <p className="font-bold text-lg">€{cost.toFixed(2)}</p>
+                                                    <p className="font-bold text-lg">{format(cost)}</p>
                                                 </div>
                                                 <div className="text-right">
                                                     <p className="text-xs text-muted-foreground">Price</p>
-                                                    <p className="font-bold text-lg">€{price.toFixed(2)}</p>
+                                                    <p className="font-bold text-lg">{format(price)}</p>
                                                 </div>
                                                 <div className="text-right">
                                                     <p className="text-xs text-muted-foreground">Margin</p>
@@ -293,6 +305,7 @@ const RecipeManagement = () => {
                                                         size="sm"
                                                         variant="outline"
                                                         onClick={() => handleEdit(recipe)}
+                                                        disabled={!canUpdate}
                                                     >
                                                         Edit
                                                     </Button>
@@ -301,6 +314,7 @@ const RecipeManagement = () => {
                                                         variant="outline"
                                                         className="text-red-600 hover:text-red-700"
                                                         onClick={() => handleDelete(recipe)}
+                                                        disabled={!canDelete}
                                                     >
                                                         <Trash2 className="size-4" />
                                                     </Button>
@@ -356,7 +370,7 @@ const RecipeManagement = () => {
                                 <SelectContent>
                                     {menu.map(mi => (
                                         <SelectItem key={mi._id} value={mi._id}>
-                                            {mi.name} — €{(mi.price || 0).toFixed(2)}
+                                            {mi.name} — {format(mi.price || 0)}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
@@ -384,7 +398,7 @@ const RecipeManagement = () => {
                                                     <SelectContent>
                                                         {inventoryItems.map(inv => (
                                                             <SelectItem key={inv._id} value={inv._id}>
-                                                                {inv.name} (€{(inv.costPerUnit || 0).toFixed(2)}/{inv.unit})
+                                                                {inv.name} ({format(inv.costPerUnit || 0)}/{inv.unit})
                                                             </SelectItem>
                                                         ))}
                                                     </SelectContent>
@@ -480,6 +494,7 @@ const RecipeManagement = () => {
 const CostingDialog = ({ recipe, onClose }) => {
     const [costing, setCosting] = useState(null);
     const { getCosting } = useRecipeStore();
+    const format = useCurrencyStore((s) => s.format);
 
     useEffect(() => {
         if (recipe.menuItem?._id) {
@@ -511,15 +526,15 @@ const CostingDialog = ({ recipe, onClose }) => {
                         <div className="grid grid-cols-2 gap-3">
                             <div className="p-3 rounded-lg bg-muted">
                                 <p className="text-xs text-muted-foreground">Computed Cost</p>
-                                <p className="text-xl font-bold">€{(costing.computedCost || 0).toFixed(2)}</p>
+                                <p className="text-xl font-bold">{format(costing.computedCost || 0)}</p>
                             </div>
                             <div className="p-3 rounded-lg bg-muted">
                                 <p className="text-xs text-muted-foreground">Sale Price</p>
-                                <p className="text-xl font-bold">€{(costing.salePrice || 0).toFixed(2)}</p>
+                                <p className="text-xl font-bold">{format(costing.salePrice || 0)}</p>
                             </div>
                             <div className="p-3 rounded-lg bg-emerald-500/10">
                                 <p className="text-xs text-muted-foreground">Gross Profit</p>
-                                <p className="text-xl font-bold text-emerald-600">€{(costing.grossProfit || 0).toFixed(2)}</p>
+                                <p className="text-xl font-bold text-emerald-600">{format(costing.grossProfit || 0)}</p>
                             </div>
                             <div className="p-3 rounded-lg bg-amber-500/10">
                                 <p className="text-xs text-muted-foreground">Margin</p>
@@ -534,7 +549,7 @@ const CostingDialog = ({ recipe, onClose }) => {
                                 {costing.ingredients?.map((ing, i) => (
                                     <div key={i} className="flex items-center justify-between text-sm py-1 px-2 rounded hover:bg-muted/50">
                                         <span>{ing.name} × {ing.quantity} {ing.unit}</span>
-                                        <span className="text-muted-foreground">€{(ing.lineCost || 0).toFixed(2)}</span>
+                                        <span className="text-muted-foreground">{format(ing.lineCost || 0)}</span>
                                     </div>
                                 ))}
                             </div>

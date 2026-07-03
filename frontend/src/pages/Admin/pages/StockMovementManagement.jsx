@@ -12,10 +12,13 @@ import {
 } from "@/components/ui/select";
 import {
     ArrowLeftRight, TrendingDown, TrendingUp, Package, Calculator,
-    AlertTriangle, History, Plus, RefreshCw, Filter, Download
+    AlertTriangle, History, Plus, RefreshCw, Filter
 } from 'lucide-react';
 import { useStockMovementStore } from '@/store/useStockMovementStore';
 import { useInventoryStore } from '@/store/useInventoryStore';
+import { useAuthStore } from '@/store/useAuthStore';
+import { useCurrencyStore } from '@/store/useCurrencyStore';
+import { can } from '@/utils/rbac';
 import {
     Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription
 } from "@/components/ui/dialog";
@@ -38,6 +41,11 @@ const StockMovementManagement = () => {
         getMovements, getStats, restock, adjust,
     } = useStockMovementStore();
     const { items: inventoryItems, fetchInventory } = useInventoryStore();
+    const { authUser } = useAuthStore();
+    // Popravek: prej hardcoded € — sedaj uporabljamo useCurrencyStore.format()
+    const format = useCurrencyStore((s) => s.format);
+    // RBAC: only inventory:update roles can restock/adjust stock
+    const canUpdateStock = can(authUser?.role, 'inventory:update');
 
     const [filters, setFilters] = useState({
         type: 'all',
@@ -95,12 +103,16 @@ const StockMovementManagement = () => {
                         </p>
                     </div>
                     <div className="flex gap-2">
+                        {canUpdateStock && (
                         <Button variant="outline" onClick={() => setAdjustDialog(true)}>
                             <Calculator className="size-4 mr-2" /> Adjust
                         </Button>
+                        )}
+                        {canUpdateStock && (
                         <Button onClick={() => setRestockDialog(true)}>
                             <Plus className="size-4 mr-2" /> Restock
                         </Button>
+                        )}
                     </div>
                 </div>
 
@@ -112,7 +124,7 @@ const StockMovementManagement = () => {
                         </div>
                         <div>
                             <p className="text-xs text-muted-foreground uppercase">Total Consumed</p>
-                            <p className="text-2xl font-bold">€{totalConsumed.toFixed(2)}</p>
+                            <p className="text-2xl font-bold">{format(totalConsumed)}</p>
                         </div>
                     </CardContent></Card>
                     <Card><CardContent className="p-4 flex items-center gap-3">
@@ -171,7 +183,7 @@ const StockMovementManagement = () => {
                                             <span className="text-muted-foreground">
                                                 {item.totalConsumed.toFixed(2)} {item.unit || 'units'}
                                             </span>
-                                            <span className="font-semibold">€{(item.totalValue || 0).toFixed(2)}</span>
+                                            <span className="font-semibold">{format(item.totalValue || 0)}</span>
                                         </div>
                                     </div>
                                 ))}
@@ -296,7 +308,7 @@ const StockMovementManagement = () => {
                                                     {m.quantityAfter.toFixed(2)}
                                                 </td>
                                                 <td className="p-3 text-right font-mono">
-                                                    €{(m.totalValue || 0).toFixed(2)}
+                                                    {format(m.totalValue || 0)}
                                                 </td>
                                                 <td className="p-3 text-muted-foreground max-w-xs truncate">
                                                     {m.reason || '—'}
@@ -386,6 +398,7 @@ const StockMovementManagement = () => {
 
 // === Restock sub-dialog ===
 const RestockDialog = ({ inventoryItems, onClose, onRestock }) => {
+    const format = useCurrencyStore((s) => s.format);
     const [formData, setFormData] = useState({
         inventory: '',
         quantity: '',
@@ -439,7 +452,7 @@ const RestockDialog = ({ inventoryItems, onClose, onRestock }) => {
                     {selectedItem && (
                         <div className="text-sm text-muted-foreground bg-muted/30 p-3 rounded-lg">
                             Current stock: <strong>{selectedItem.quantity} {selectedItem.unit}</strong>
-                            <br />Current cost: €{(selectedItem.costPerUnit || 0).toFixed(2)}/{selectedItem.unit}
+                            <br />Current cost: {format(selectedItem.costPerUnit || 0)}/{selectedItem.unit}
                         </div>
                     )}
 
