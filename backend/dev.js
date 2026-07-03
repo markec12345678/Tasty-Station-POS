@@ -30,7 +30,38 @@ const seedIfEmpty = async () => {
         console.log(`ℹ️  DB already has ${userCount} users — skipping seed.`);
         return;
     }
-    console.log("🌱 DB empty — seeding demo data…");
+    console.log("🌱 DB empty — seeding…");
+
+    // Določi način seedanja (demo vs production bootstrap).
+    // Enaka logika kot seed.js — drži oba vijga sinhronizirana.
+    const seedDemo = process.env.SEED_DEMO_USERS === "true"
+        ? true
+        : process.env.SEED_DEMO_USERS === "false"
+            ? false
+            : process.env.NODE_ENV !== "production";
+
+    if (!seedDemo) {
+        // Production bootstrap — samo admin iz env spremenljivk.
+        const email = process.env.SEED_ADMIN_EMAIL;
+        const password = process.env.SEED_ADMIN_PASSWORD;
+        if (!email || !password) {
+            console.warn("⚠️  Production mode but SEED_ADMIN_EMAIL/SEED_ADMIN_PASSWORD not set — no users seeded.");
+            console.warn("    Set them in .env, or set SEED_DEMO_USERS=true for demo data.");
+            return;
+        }
+        await User.create({
+            name: process.env.SEED_ADMIN_NAME || "Administrator",
+            email, password, role: "admin",
+            pin: process.env.SEED_ADMIN_PIN || undefined,
+            designation: "System Administrator",
+            isActive: true,
+        });
+        console.log(`🔐 Production bootstrap — admin created: ${email}`);
+        return;
+    }
+
+    // Demo način — seed vseh demo podatkov.
+    console.log("🌱 Seeding demo data (development mode)…");
 
     // Hash passwords pred insertMany (ker pre("save") hook se ne sproži)
     const usersWithHashedPasswords = await Promise.all(

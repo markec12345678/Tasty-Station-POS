@@ -43,6 +43,16 @@ const tableSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: "Order",
         default: null
+    },
+    // === Multi-outlet ===
+    // Outlet, ki mu pripada ta miza. QR naročila (public.router.js) pridobijo
+    // outletId iz mize, da lahko Socket.io emit dogodke usmeri samo v pravo
+    // outlet sobo (kuhinja + blagajna te lokacije). Null = pripada primarnemu
+    // outlet-u (backward-compat za single-outlet postavitve).
+    outletId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Outlet",
+        default: null,
     }
 }, { timestamps: true });
 

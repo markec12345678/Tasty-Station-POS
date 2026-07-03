@@ -6,7 +6,7 @@ const FiscalInvoice = require("../models/fiscalInvoice.model");
 const Outlet = require("../models/outlet.model");
 const CurrencySettings = require("../models/currencySettings.model");
 const ApiError = require("../utils/ApiError");
-const { getIo } = require("../config/socket.config");
+const { emitToOutlet } = require("../config/socket.config");
 const { notifyNewOrderPush, notifyOrderReadyPush } = require("../utils/pushService");
 const { awardPointsForOrder } = require("./loyalty.controller");
 const { confirmInvoice } = require("../utils/furs");
@@ -218,10 +218,11 @@ const createOrder = async (req, res, next) => {
             .populate("user", "name")
             .populate("table", "name zone");
 
-        // Emit real-time event for new order
+        // Emit real-time event for new order — pošlje samo v outlet sobo
+        // (kuhinja in blagajna na tem outlet-u) + global sobo (admin dashboard).
+        // Prej io.emit — vsi so prejemali vsa naročila (multi-outlet leak).
         try {
-            const io = getIo();
-            io.emit("newOrder", populatedOrder);
+            emitToOutlet(newOrder.outletId, "newOrder", populatedOrder);
         } catch (socketError) {
             console.error("Socket.io error on newOrder:", socketError);
         }
@@ -388,10 +389,9 @@ const updateOrderStatus = async (req, res, next) => {
             return res.status(404).json({ success: false, message: "Order not found" });
         }
 
-        // Emit real-time event for order status update
+        // Emit real-time event for order status update — outlet-scoped
         try {
-            const io = getIo();
-            io.emit("orderStatusUpdate", order);
+            emitToOutlet(order.outletId, "orderStatusUpdate", order);
         } catch (socketError) {
             console.error("Socket.io error on orderStatusUpdate:", socketError);
         }
@@ -493,9 +493,10 @@ const addPayment = async (req, res, next) => {
             .populate("table", "name zone");
 
         try {
-            const io = getIo();
-            io.emit("paymentUpdate", populatedOrder);
-            if (order.balanceDue === 0) io.emit("orderStatusUpdate", populatedOrder);
+            emitToOutlet(populatedOrder.outletId, "paymentUpdate", populatedOrder);
+            if (order.balanceDue === 0) {
+                emitToOutlet(populatedOrder.outletId, "orderStatusUpdate", populatedOrder);
+            }
         } catch (e) { console.error("Socket error:", e); }
 
         // Ko je račun popolnoma plačan (in order samodejno prešel v Completed) —
@@ -574,10 +575,9 @@ const sendCourseToKitchen = async (req, res, next) => {
             .populate("user", "name")
             .populate("table", "name zone");
 
-        // Emit Socket.io — samo poslani itemi gredo v KDS
+        // Emit Socket.io — samo poslani itemi gredo v KDS (outlet-scoped)
         try {
-            const io = getIo();
-            io.emit("courseSent", { order: populatedOrder, course, sentCount });
+            emitToOutlet(populatedOrder.outletId, "courseSent", { order: populatedOrder, course, sentCount });
         } catch (socketError) {
             console.error("Socket.io error on courseSent:", socketError);
         }

@@ -64,6 +64,22 @@ const outletSchema = new mongoose.Schema({
         type: String,
         trim: true,
     },
+    // === FURS identifikatorji ===
+    // Oznaka poslovnega prostora (FURS BusinessPremiseID). FURS zahteva, da
+    // se vsak poslovni prostor predhodno prijavi. Default "1" za kompatibilnost
+    // s prejšnjo implementacijo, kjer je bila ta vrednost hardcoded v furs.js.
+    businessUnit: {
+        type: String,
+        default: "1",
+        trim: true,
+    },
+    // Oznaka elektronske naprave / blagajne (FURS ElectronicDeviceID). Več
+    // blagajn na istem outlet-u mora imeti različne oznake. Default "1".
+    cashRegister: {
+        type: String,
+        default: "1",
+        trim: true,
+    },
     // Ali je outlet aktiven
     isActive: {
         type: Boolean,

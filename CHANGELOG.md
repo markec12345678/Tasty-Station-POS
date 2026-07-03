@@ -7,6 +7,77 @@ in projekt upošteva [Semantic Versioning](https://semver.org/lang/sl/).
 
 ---
 
+## [1.2.0] — 2025-07-02 — Multi-Outlet Isolation, FURS Hardening, Seed Safety
+
+Nadaljevanje varnostnega in arhitekturnega audit-a. Fokus na pravilnosti
+multi-outlet postavitve, davčni skladnosti FURS v produkciji in odstranitvi
+demo gesel iz produkcijskih okolij. 11 datotek spremenjenih.
+
+### 🔒 Security
+
+- **Demo gesla v produkciji** — `seed.js` in `dev.js` sta v `NODE_ENV=production`
+  seedala demo uporabnike (`admin@pos.com` / `password123`) s plaintext
+  gesli, ki bi bili v produkciji takoj kompromitirani. Sedaj se demo uporabniki
+  seedajo SAMO ko `NODE_ENV !== 'production'` ALI ko je `SEED_DEMO_USERS=true`.
+  V produkciji seeder ustvari samo admin iz `SEED_ADMIN_EMAIL` /
+  `SEED_ADMIN_PASSWORD` env spremenljivk (PIN opcijski).
+- **FURS random ZOI v produkciji** — `furs.js:confirmInvoice` je ob manjkajočem
+  certifikatu generiral random MD5 kot ZOI. V produkciji to pomeni davčno
+  neveljavne račune (kršitev ZDavPR). Sedaj: v produkciji hard fail (return
+  `{ success: false, error }`), v dev/test še dovoljen random fallback.
+
+### 💰 Financial Integrity (FURS)
+
+- **Dinamični FURS identifikatorji** — `buildSOAPEnvelope` in `confirmInvoice`
+  sta imela hardcoded `businessUnit="1"` in `cashRegister="1"`. Outleti z več
+  blagajnami ali predhodno prijavljenimi FURS oznakami tega niso mogli
+  upoštevati. Dodani polji `Outlet.businessUnit` in `Outlet.cashRegister`
+  (default `"1"` za backward-compat). `confirmInvoice` sedaj uporablja
+  `outlet.businessUnit` / `outlet.cashRegister` in shrani prave vrednosti
+  v `FiscalInvoice`.
+- **OutletManagement UI** — dodani input polji za FURS Business Unit in
+  Cash Register v dialogu za urejanje outlet-a.
+
+### 🏢 Multi-Outlet Sync (Real-Time Isolation)
+
+- **Socket.io outlet sobe** — vsi `io.emit(...)` klici v `order.controller.js`
+  in `public.router.js` so pošiljali dogodke (`newOrder`, `orderStatusUpdate`,
+  `paymentUpdate`, `courseSent`, `qrOrderPlaced`) VSEM prijavljenim odjemalcem.
+  Pri multi-outlet postavitvi je kuhalnica lokacije A videla naročila lokacije B.
+  Novi helper `emitToOutlet(outletId, event, data)` pošlje dogodek samo v sobo
+  `outlet:<outletId>` (+ `outlet:global` za admin dashboard).
+- **Table.outletId polje** — dodano additivno polje (default null) na Table
+  model, da QR naročila pridobijo outlet kontekst iz mize. `public.router.js`
+  sedaj nastavi `order.outletId = table.outletId` in uporabi `emitToOutlet`.
+- **Frontend `join-outlet` event** — `frontend/src/config/socket.config.js`
+  ob vsakem (re)connect-u pošlje `join-outlet` z `authUser.outletId` (iz
+  Zustand persist storage-a). Nov helper `joinOutletRoom(outletId)` za
+  preklop outlet-a brez ponovne prijave.
+
+### 📚 Documentation Accuracy
+
+- **README.md** — popravljene zastarele števce: routers 22 → 23, admin pages
+  17 → 20, Zustand stores 17 → 22. Demo credentials tabela ima zdaj PIN stolpec
+  + warning, da se seedajo samo v non-production. Roadmap dopolnjen z 3 novimi
+  done item-i (FURS hardening, Socket.io outlet isolation, Seed env-gating).
+- **SECURITY.md** — odstranjene napačne trditve o PWA / Service Worker
+  (PWA je bil odstranjen v v1.1.0). Demo credentials razdelek razširjen z
+  razlago env-gating logike in PIN-i. "Service Worker (PWA)" razdelek
+  preimenovan v "Offline Queue (IndexedDB)".
+- **DEPLOYMENT.md** — "PWA cache issues" razdelek preimenovan v "Offline queue
+  / browser cache issues". Odstranjena referenca na "clear Service Worker cache".
+- **`.env.example`** — dodan `SEED_DEMO_USERS`, `SEED_ADMIN_EMAIL`,
+  `SEED_ADMIN_PASSWORD`, `SEED_ADMIN_NAME`, `SEED_ADMIN_PIN` z dokumentacijo.
+
+### 🧪 Tests
+
+- Brez regresij — obstoječi testi (backend 85/85, frontend 45/45) še vedno
+  passajo. Novi helperji (`emitToOutlet`, `joinOutletRoom`) so additive in
+  ne vplivajo na obstoječe Socket.io behaviour (admin dashboard še vedno
+  prejema vse dogodke prek `outlet:global` sobe).
+
+---
+
 ## [1.1.0] — 2025-07-02 — Security & Quality Audit
 
 Celovit varnostni, finančni in kvalitetni audit. 55+ datotek popravljeno,

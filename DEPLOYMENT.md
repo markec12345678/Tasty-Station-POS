@@ -285,7 +285,7 @@ Vercel auto-deploys on every push to `main` branch.
 - Verify `VITE_API_BASE_URL` is set correctly
 - Check browser console for CORS errors
 - Ensure backend `CLIENT_URL` matches your frontend URL
-- Try hard refresh (Ctrl+Shift+R) to clear Service Worker cache
+- Try hard refresh (Ctrl+Shift+R) to clear browser cache
 
 ### Socket.io not working
 - WebSockets require sticky sessions (Vercel supports this)
@@ -297,11 +297,13 @@ Vercel auto-deploys on every push to `main` branch.
 - Use `mongodb+srv://` protocol (not `mongodb://`)
 - Verify user has readWrite permissions
 
-### PWA cache issues
-After deploying new version, users may need to:
+### Offline queue / browser cache issues
+The web app uses an IndexedDB offline queue (no service worker / PWA).
+After deploying a new version, users may need to:
 1. Close all app tabs
 2. Hard refresh (Ctrl+Shift+R)
-3. Or clear site data in DevTools → Application → Storage
+3. Or clear site data in DevTools → Application → Storage (this also clears
+   any queued offline orders, so only do it when the queue is empty)
 
 ---
 

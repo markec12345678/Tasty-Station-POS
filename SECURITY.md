@@ -71,7 +71,7 @@ Tasty Station POS implements the following security measures:
 - **React 19** with strict mode enabled
 - **Zustand** state management (no global mutable state)
 - **Shadcn UI** components (accessible by default)
-- **PWA** with Service Worker for offline security
+- **IndexedDB offline queue** — failed orders persisted client-side and auto-synced when online (no service worker / PWA)
 
 ## 🔐 Best Practices for Deployment
 
@@ -110,23 +110,29 @@ node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
 
 ## ⚠️ Known Security Considerations
 
-### Demo Credentials
-The following demo accounts are seeded for development:
-- `admin@pos.com` / `password123`
-- `sarah@pos.com` / `password123`
-- `john@pos.com` / `password123`
-- `michael@pos.com` / `password123`
-- `gordon@pos.com` / `password123`
+### Demo Credentials (Development Only)
+The following demo accounts are seeded **only when `NODE_ENV !== 'production'`**
+(or when `SEED_DEMO_USERS=true` is set explicitly):
 
-**⚠️ These MUST be removed or changed in production deployments.**
+- `admin@pos.com` / `password123` (PIN 1234)
+- `sarah@pos.com` / `password123` (PIN 5566)
+- `john@pos.com` / `password123` (PIN 1111)
+- `michael@pos.com` / `password123` (PIN 3333)
+- `gordon@pos.com` / `password123` (PIN 8888)
+
+**Production bootstrap is different**: the seeder creates a single admin from
+`SEED_ADMIN_EMAIL` + `SEED_ADMIN_PASSWORD` env vars. No demo data is ever
+written to a production database. Never set `SEED_DEMO_USERS=true` in production.
 
 ### In-Memory MongoDB Fallback
 When MongoDB is unreachable, the backend automatically falls back to `mongodb-memory-server`. This is for **development only** — data is lost on restart. In production, always ensure MongoDB is available.
 
-### Service Worker (PWA)
-The PWA Service Worker caches the app shell for offline use. After a security update, users may need to:
+### Offline Queue (IndexedDB)
+The web app uses an **IndexedDB-backed offline queue** (not a PWA / service worker).
+Failed orders are persisted client-side and auto-synced with exponential backoff
+when connectivity is restored. After a security update, users may need to:
 1. Close all tabs of the app
-2. Clear site data
+2. Clear site data (DevTools → Application → Storage)
 3. Reopen the app
 
 ## 📚 Security Resources

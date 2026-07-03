@@ -272,7 +272,7 @@ const OutletDialog = ({ open, onOpenChange, outlet, onSave }) => {
         name: "", code: "", description: "",
         address: { street: "", city: "", zip: "", country: "Slovenia" },
         phone: "", email: "",
-        taxNumber: "", currencyCode: "",
+        taxNumber: "", businessUnit: "1", cashRegister: "1", currencyCode: "",
         openingHours: WEEKDAYS.reduce((acc, d) => {
             acc[d.key] = { open: "08:00", close: "22:00", closed: d.key === 'sunday' };
             return acc;
@@ -291,6 +291,8 @@ const OutletDialog = ({ open, onOpenChange, outlet, onSave }) => {
                 phone: outlet.phone || "",
                 email: outlet.email || "",
                 taxNumber: outlet.taxNumber || "",
+                businessUnit: outlet.businessUnit || "1",
+                cashRegister: outlet.cashRegister || "1",
                 currencyCode: outlet.currencyCode || "",
                 openingHours: outlet.openingHours || formData.openingHours,
                 isPrimary: outlet.isPrimary || false,
@@ -301,7 +303,7 @@ const OutletDialog = ({ open, onOpenChange, outlet, onSave }) => {
                 name: "", code: "", description: "",
                 address: { street: "", city: "", zip: "", country: "Slovenia" },
                 phone: "", email: "",
-                taxNumber: "", currencyCode: "",
+                taxNumber: "", businessUnit: "1", cashRegister: "1", currencyCode: "",
                 openingHours: WEEKDAYS.reduce((acc, d) => {
                     acc[d.key] = { open: "08:00", close: "22:00", closed: d.key === 'sunday' };
                     return acc;
@@ -407,7 +409,7 @@ const OutletDialog = ({ open, onOpenChange, outlet, onSave }) => {
                         </div>
                     </div>
 
-                    {/* Tax + currency */}
+                    {/* Tax + FURS + currency */}
                     <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1.5">
                             <Label className="text-xs">Tax Number ( davčna št.)</Label>
@@ -424,6 +426,26 @@ const OutletDialog = ({ open, onOpenChange, outlet, onSave }) => {
                                 onChange={(e) => setFormData({ ...formData, currencyCode: e.target.value.toUpperCase() })}
                                 placeholder="EUR (empty = global)"
                                 maxLength={3}
+                            />
+                        </div>
+                    </div>
+
+                    {/* FURS identifiers */}
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                            <Label className="text-xs">FURS Business Unit (poslovni prostor)</Label>
+                            <Input
+                                value={formData.businessUnit}
+                                onChange={(e) => setFormData({ ...formData, businessUnit: e.target.value })}
+                                placeholder="1"
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label className="text-xs">FURS Cash Register (elektronska naprava)</Label>
+                            <Input
+                                value={formData.cashRegister}
+                                onChange={(e) => setFormData({ ...formData, cashRegister: e.target.value })}
+                                placeholder="1"
                             />
                         </div>
                     </div>

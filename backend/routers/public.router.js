@@ -5,7 +5,7 @@ const { MenuItem, Category } = require("../models/menu.model");
 const Table = require("../models/table.model");
 const Order = require("../models/order.model");
 const Client = require("../models/client.model");
-const { getIo } = require("../config/socket.config");
+const { emitToOutlet } = require("../config/socket.config");
 
 // === JAVNI ENDPOINTI (brez avtentikacije) ===
 // Uporablja se za QR kodno naročanje gostov.
@@ -215,7 +215,11 @@ router.post("/order", async (req, res) => {
         // Generiraj orderId
         const orderId = `QR-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
-        // Kreiraj Order
+        // Kreiraj Order — pridobi outletId iz mize (za pravilno Socket.io
+        // outlet-scoped emit). Če miza nima outletId, ostane null → emit gre
+        // samo v `outlet:global` sobo (admin dashboard).
+        const orderOutletId = table.outletId || null;
+
         const newOrder = new Order({
             orderId,
             type: "Dine-in",
@@ -223,6 +227,7 @@ router.post("/order", async (req, res) => {
             paymentMethod: "Cash", // gost še plača kasneje
             items: orderItems,
             totalAmount,
+            outletId: orderOutletId,
             client: client._id,
             clientName: name,
             clientPhone: phone || "",
@@ -247,11 +252,10 @@ router.post("/order", async (req, res) => {
             .populate("client", "name phone")
             .populate("table", "name zone");
 
-        // Emit real-time event za KDS in POS
+        // Emit real-time event za KDS in POS — outlet-scoped
         try {
-            const io = getIo();
-            io.emit("newOrder", populatedOrder);
-            io.emit("qrOrderPlaced", {
+            emitToOutlet(orderOutletId, "newOrder", populatedOrder);
+            emitToOutlet(orderOutletId, "qrOrderPlaced", {
                 orderId: newOrder.orderId,
                 tableId,
                 tableName: populatedOrder.table?.name,

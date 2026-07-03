@@ -385,25 +385,35 @@ const confirmInvoice = async (order, outlet, paymentMethod = "cash", user = null
         // 1. Generiraj invoiceNumber
         const invoiceNumber = await generateInvoiceNumber(outlet);
 
+        // === Dinamični FURS identifikatorji iz Outlet modela ===
+        // Prej hardcoded businessUnit="1", cashRegister="1" — nepravilno za
+        // outlete z več blagajnami ali pa že prijavljene oznake pri FURS-u.
+        const businessUnit = outlet?.businessUnit || "1";
+        const cashRegister = outlet?.cashRegister || "1";
+
         // 2. Pripravi podatke za ZOI
         const issueDateTime = new Date().toISOString();
         const zoiParams = {
             taxNumber,
             issueDateTime,
             invoiceNumber,
-            businessUnit: "1",
-            cashRegister: "1",
+            businessUnit,
+            cashRegister,
             total: order.totalAmount,
         };
 
         // 3. Generiraj ZOI
+        // V produkciji je veljaven ZOI obvezen — brez certifikata ga ne moremo
+        // izračunati. Prejšnja implementacija je padla na random MD5, kar bi
+        // v produkciji pomenilo davčno neveljavne račune (kršitev ZDavPR).
+        // Sedaj: v produkciji hard fail; v dev/test dovoljen random fallback.
         let zoi = null;
         const certPath = process.env.FURS_CERT_PATH || null;
         const certPassword = process.env.FURS_CERT_PASSWORD;
+        const isProduction = process.env.NODE_ENV === "production";
 
         if (certPath) {
             // Za pravi ZOI potrebujemo RSA private key iz .p12 certifikata
-            // Uporabi crypto.createPrivateKey za ekstrakcijo
             try {
                 const fs = require("fs");
                 const crypto = require("crypto");
@@ -416,10 +426,25 @@ const confirmInvoice = async (order, outlet, paymentMethod = "cash", user = null
                 const privateKeyPem = keyObject.export({ type: "pkcs1", format: "pem" });
                 zoi = generateZOI(zoiParams, privateKeyPem);
             } catch (e) {
-                console.warn("[FURS] Cannot extract private key from .p12, using random ZOI:", e.message);
+                if (isProduction) {
+                    console.error("[FURS] Cannot extract private key from certificate in PRODUCTION:", e.message);
+                    return {
+                        success: false,
+                        error: `FURS certificate error (production): ${e.message}. Invoice cannot be issued without a valid ZOI.`,
+                    };
+                }
+                console.warn("[FURS] Cannot extract private key from .p12, using random ZOI (dev only):", e.message);
                 zoi = crypto.createHash("md5").update(`${taxNumber}${invoiceNumber}${Date.now()}`).digest("hex");
             }
         } else {
+            // Manjkajoč certifikat
+            if (isProduction) {
+                console.error("[FURS] FURS_CERT_PATH not set in PRODUCTION — cannot generate valid ZOI.");
+                return {
+                    success: false,
+                    error: "FURS_CERT_PATH not configured. Production requires a valid certificate to issue fiscal invoices.",
+                };
+            }
             // Fallback — generiraj random ZOI za development
             zoi = crypto.createHash("md5").update(`${taxNumber}${invoiceNumber}${Date.now()}`).digest("hex");
             console.warn("[FURS] No certificate — using random ZOI (development only)");
@@ -451,8 +476,8 @@ const confirmInvoice = async (order, outlet, paymentMethod = "cash", user = null
             orderId: order.orderId,
             outlet: outlet?._id,
             invoiceNumber,
-            businessUnit: "1",
-            cashRegister: "1",
+            businessUnit,
+            cashRegister,
             taxNumber,
             zoi,
             eor: fursResult.success ? fursResult.eor : null,

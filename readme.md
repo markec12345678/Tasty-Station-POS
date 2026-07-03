@@ -280,7 +280,7 @@ Tasty-Station-POS/
 │   ├── config/                 # Database, Cloudinary, Socket.io configs
 │   ├── controllers/            # 17 controllers (order, loyalty, backup, currency, audit, forecast, outlet, fiscal, email, ...)
 │   ├── models/                 # 16 Mongoose models (User, Order, Table, Reward, Outlet, FiscalInvoice, AuditLog, ...)
-│   ├── routers/                # 22 API routers
+│   ├── routers/                # 23 API routers
 │   ├── middlewares/            # Auth, cache, error, validators
 │   ├── redis/                  # Redis client with graceful fallback
 │   ├── utils/                  # ApiError, logger, genrateToken
@@ -294,9 +294,9 @@ Tasty-Station-POS/
 │   │   ├── pages/
 │   │   │   ├── Auth/           # Login, Signup (i18n)
 │   │   │   ├── dashboard/      # Cashier/Waiter/Kitchen pages
-│   │   │   ├── Admin/          # 17 admin pages (lazy-loaded)
+│   │   │   ├── Admin/          # 20 admin pages (lazy-loaded)
 │   │   │   └── QR/             # Customer-facing QR ordering page
-│   │   ├── store/              # 17 Zustand stores (auth, order, kitchen, loyalty, audit, forecast, currency, fiscal, outlet, ...)
+│   │   ├── store/              # 22 Zustand stores (auth, order, kitchen, loyalty, audit, forecast, currency, fiscal, outlet, ...)
 │   │   ├── i18n/               # Slovenian + English translations
 │   │   └── axios/              # Configured interceptors
 │   └── vite.config.js
@@ -394,13 +394,18 @@ npm run dev
 
 Visit **http://localhost:5173** and log in with demo credentials:
 
-| Role     | Email             | Password     |
-|----------|-------------------|--------------|
-| Admin    | admin@pos.com     | password123  |
-| Manager  | sarah@pos.com     | password123  |
-| Cashier  | john@pos.com      | password123  |
-| Waiter   | michael@pos.com   | password123  |
-| Kitchen  | gordon@pos.com    | password123  |
+> ⚠️ **Demo credentials are seeded ONLY in non-production environments**
+> (`NODE_ENV !== 'production'` or `SEED_DEMO_USERS=true`).
+> In production the seeder bootstrap-creates a single admin from
+> `SEED_ADMIN_EMAIL` + `SEED_ADMIN_PASSWORD` env vars — no demo data.
+
+| Role     | Email             | Password     | PIN  |
+|----------|-------------------|--------------|------|
+| Admin    | admin@pos.com     | password123  | 1234 |
+| Manager  | sarah@pos.com     | password123  | 5566 |
+| Cashier  | john@pos.com      | password123  | 1111 |
+| Waiter   | michael@pos.com   | password123  | 3333 |
+| Kitchen  | gordon@pos.com    | password123  | 8888 |
 
 ### Alternative: Use start.sh
 
@@ -512,6 +517,9 @@ VITE_API_BASE_URL=http://localhost:3000
 - [x] ~~**Push Notifications**: Mobile FCM/APNs via Expo Push API.~~ ✅ Done
 - [x] ~~**FURS SOAP Production**: Real SOAP call with .p12 certificate + mutual TLS.~~ ✅ Done
 - [x] ~~**Security & Quality Audit**: Comprehensive backend+frontend audit — 55+ files fixed, 130/130 tests green, 0 lint errors.~~ ✅ Done
+- [x] **FURS hardening**: Hard-fail in production without certificate; dynamic businessUnit/cashRegister per Outlet. ✅ Done
+- [x] **Socket.io outlet isolation**: Per-outlet rooms prevent cross-location event leaks in multi-outlet chains. ✅ Done
+- [x] **Seed env-gating**: Demo credentials only seed in non-production; production bootstrap via env vars. ✅ Done
 - [ ] **Production deployment**: Vercel + Railway with real MongoDB.
 
 ---
